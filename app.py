@@ -17,7 +17,9 @@ st.set_page_config(
 # Load prediction data
 # --------------------------------------------------
 
-DATA_PATH = "/content/latest_bloom_risk_predictions.csv"
+from pathlib import Path
+
+DATA_PATH = Path(__file__).parent / "latest_bloom_risk_predictions.csv"
 
 df = pd.read_csv(DATA_PATH)
 df["date"] = pd.to_datetime(df["date"])
