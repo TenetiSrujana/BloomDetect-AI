@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 
 # ============================================================
-# BLOOMDETECT AI | FINAL PUBLIC DASHBOARD
+# BLOOMDETECT AI | FINAL DASHBOARD
 # ============================================================
 st.set_page_config(
     page_title="BloomDetect AI",
@@ -14,10 +14,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ----------------------------- Theme -------------------------
+# ============================================================
+# PROFESSIONAL OCEAN THEME
+# ============================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
 html, body, [class*="css"] {
     font-family: "DM Sans", sans-serif;
@@ -25,573 +27,707 @@ html, body, [class*="css"] {
 
 .stApp {
     background:
-        radial-gradient(circle at 82% 4%, rgba(25, 126, 157, 0.14), transparent 28%),
-        radial-gradient(circle at 10% 18%, rgba(16, 78, 110, 0.10), transparent 26%),
-        #07141b;
+        radial-gradient(circle at 78% 5%, rgba(32, 155, 173, .12), transparent 28%),
+        radial-gradient(circle at 5% 25%, rgba(20, 88, 113, .10), transparent 26%),
+        #061219;
+    color: #eaf6f7;
 }
 
 .block-container {
-    max-width: 1380px;
-    padding-top: 2.0rem;
-    padding-bottom: 2rem;
+    max-width: 1450px;
+    padding-top: 1.7rem;
+    padding-bottom: 3rem;
 }
 
 section[data-testid="stSidebar"] {
-    background: #061119;
-    border-right: 1px solid rgba(127, 196, 210, 0.13);
+    background: #041017;
+    border-right: 1px solid rgba(117, 194, 207, .12);
+}
+
+section[data-testid="stSidebar"] > div {
+    padding-top: 1.5rem;
 }
 
 .hero {
     position: relative;
     overflow: hidden;
-    padding: 42px 46px 38px 46px;
-    border: 1px solid rgba(131, 207, 224, 0.17);
-    border-radius: 26px;
+    padding: 48px 50px 44px;
+    border-radius: 28px;
+    border: 1px solid rgba(121, 213, 221, .16);
     background:
-        linear-gradient(135deg, rgba(8, 48, 64, .96), rgba(5, 24, 34, .97)),
-        radial-gradient(circle at 85% 25%, rgba(54, 190, 205, .18), transparent 28%);
-    box-shadow: 0 24px 70px rgba(0,0,0,.28);
+        linear-gradient(135deg, rgba(7, 51, 65, .98), rgba(4, 27, 37, .98));
+    box-shadow: 0 25px 80px rgba(0,0,0,.25);
 }
 
-.hero:after {
+.hero::after {
     content: "";
     position: absolute;
-    width: 310px;
-    height: 310px;
-    right: -90px;
-    top: -130px;
+    right: -110px;
+    top: -150px;
+    width: 390px;
+    height: 390px;
     border-radius: 50%;
-    border: 1px solid rgba(101, 209, 220, .15);
-    box-shadow: 0 0 0 38px rgba(101,209,220,.035), 0 0 0 78px rgba(101,209,220,.02);
+    border: 1px solid rgba(104, 211, 221, .15);
+    box-shadow:
+        0 0 0 40px rgba(104,211,221,.035),
+        0 0 0 82px rgba(104,211,221,.018);
 }
 
 .eyebrow {
-    color: #70d2d9;
-    font-size: 0.78rem;
+    color: #67d1d8;
+    font-size: .76rem;
     font-weight: 700;
-    letter-spacing: .16em;
+    letter-spacing: .18em;
     text-transform: uppercase;
     margin-bottom: 12px;
 }
 
 .hero h1 {
     font-family: "Manrope", sans-serif;
-    font-size: clamp(2.25rem, 5vw, 4.25rem);
-    line-height: .98;
-    margin: 0;
     color: #f2fbfc;
-    letter-spacing: -.045em;
+    font-size: clamp(2.5rem, 5vw, 4.7rem);
+    line-height: .95;
+    letter-spacing: -.05em;
+    margin: 0;
 }
 
 .hero p {
-    color: #a9c5cb;
-    max-width: 760px;
-    font-size: 1.04rem;
-    line-height: 1.65;
-    margin-top: 20px;
+    color: #a9c7cd;
+    max-width: 800px;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin: 20px 0 0;
 }
 
-.pill {
+.hero-tag {
     display: inline-block;
-    margin-top: 16px;
-    padding: 7px 12px;
-    border: 1px solid rgba(111, 211, 217, .2);
+    margin-top: 20px;
+    padding: 7px 13px;
     border-radius: 999px;
-    color: #bdebee;
-    background: rgba(75, 182, 194, .07);
-    font-size: .82rem;
+    border: 1px solid rgba(111, 210, 218, .22);
+    background: rgba(72, 180, 193, .08);
+    color: #c2edef;
+    font-size: .8rem;
 }
 
 .section-title {
     font-family: "Manrope", sans-serif;
-    color: #edf8fa;
-    font-size: 1.45rem;
+    color: #f0fafb;
+    font-size: 1.5rem;
     font-weight: 800;
-    margin: 30px 0 12px 0;
     letter-spacing: -.025em;
+    margin: 34px 0 14px;
 }
 
-.card {
-    background: linear-gradient(145deg, rgba(12, 34, 44, .92), rgba(7, 25, 34, .92));
-    border: 1px solid rgba(126, 194, 208, .13);
-    border-radius: 18px;
-    padding: 20px;
-    min-height: 118px;
+.section-subtitle {
+    color: #78979f;
+    font-size: .9rem;
+    margin-top: -6px;
+    margin-bottom: 18px;
 }
 
-.card-label {
-    color: #83aab2;
-    font-size: .76rem;
+.info-card {
+    background: linear-gradient(145deg, rgba(11, 37, 48, .92), rgba(6, 25, 34, .92));
+    border: 1px solid rgba(121, 194, 207, .12);
+    border-radius: 17px;
+    padding: 19px;
+}
+
+.info-label {
+    color: #75959d;
+    font-size: .72rem;
     text-transform: uppercase;
-    letter-spacing: .1em;
+    letter-spacing: .11em;
     font-weight: 700;
 }
 
-.card-value {
+.info-value {
     color: #effbfc;
     font-family: "Manrope", sans-serif;
-    font-size: 1.8rem;
+    font-size: 1.7rem;
     font-weight: 800;
-    margin-top: 8px;
+    margin-top: 7px;
 }
 
-.card-note {
+.info-note {
     color: #78959d;
-    font-size: .79rem;
-    margin-top: 5px;
+    font-size: .77rem;
+    margin-top: 4px;
 }
 
 .callout {
-    border-left: 3px solid #58c7d0;
-    background: rgba(63, 174, 187, .07);
-    padding: 16px 18px;
+    border-left: 3px solid #5bc8d0;
+    background: rgba(70, 183, 194, .065);
+    padding: 15px 18px;
     border-radius: 0 12px 12px 0;
     color: #b9d5da;
     line-height: 1.65;
 }
 
-.small-muted {
-    color: #78959d;
-    font-size: .82rem;
+.map-card {
+    background: #061a23;
+    border: 1px solid rgba(125, 205, 215, .12);
+    border-radius: 20px;
+    padding: 8px;
 }
 
 [data-testid="stMetric"] {
-    background: linear-gradient(145deg, rgba(12,34,44,.92), rgba(7,25,34,.92));
-    border: 1px solid rgba(126,194,208,.13);
-    padding: 15px 16px;
-    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(11,37,48,.92), rgba(6,25,34,.92));
+    border: 1px solid rgba(121,194,207,.12);
+    border-radius: 15px;
+    padding: 14px 15px;
 }
 
-[data-testid="stMetricLabel"] {
-    color: #83aab2 !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #effbfc !important;
-}
+[data-testid="stMetricLabel"] { color: #7d9da5 !important; }
+[data-testid="stMetricValue"] { color: #effbfc !important; }
 
 .stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background: rgba(6, 20, 27, .75);
-    padding: 7px;
+    gap: 5px;
+    padding: 6px;
     border-radius: 14px;
-    border: 1px solid rgba(126,194,208,.10);
+    background: rgba(4, 17, 24, .72);
+    border: 1px solid rgba(121,194,207,.09);
 }
 
 .stTabs [data-baseweb="tab"] {
-    color: #8eabb1;
+    color: #829da3;
     border-radius: 9px;
     padding: 9px 15px;
 }
 
 .stTabs [aria-selected="true"] {
-    color: #dff9fa !important;
-    background: rgba(73, 179, 190, .13);
+    color: #e6fafb !important;
+    background: rgba(75, 182, 194, .13);
 }
 
-div[data-testid="stDataFrame"] {
-    border-radius: 14px;
-    overflow: hidden;
+.stButton > button[kind="primary"] {
+    background: #43b8c1;
+    border: 0;
+    color: #041017;
+    font-weight: 800;
 }
 
-button[kind="primary"] {
-    background: #39aeb9;
-    border: none;
-    color: #061119;
-    font-weight: 700;
-}
+.small-muted { color: #708d95; font-size: .8rem; }
 
-footer {visibility: hidden;}
+footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------- Data --------------------------
+# ============================================================
+# DATA
+# ============================================================
 DATA_PATH = Path(__file__).resolve().parent / "latest_bloom_risk_predictions.csv"
 
-@st.cache_data(show_spinner="Loading satellite observations...")
+@st.cache_data(show_spinner="Loading EOS-06 observations...")
 def load_data(path):
     data = pd.read_csv(path)
-    for col in ["date", "latitude", "longitude", "chla", "risk_probability"]:
-        if col in data.columns:
-            if col == "date":
-                data[col] = pd.to_datetime(data[col], errors="coerce")
-            else:
-                data[col] = pd.to_numeric(data[col], errors="coerce")
+
     required = ["date", "latitude", "longitude", "chla", "risk_label"]
     missing = [c for c in required if c not in data.columns]
     if missing:
         raise ValueError("Missing required columns: " + ", ".join(missing))
+
+    data["date"] = pd.to_datetime(data["date"], errors="coerce")
+    for col in ["latitude", "longitude", "chla", "risk_probability"]:
+        if col in data.columns:
+            data[col] = pd.to_numeric(data[col], errors="coerce")
+
     if "risk_probability" not in data.columns:
         data["risk_probability"] = np.nan
-    return data.dropna(subset=["date", "latitude", "longitude"]).copy()
+
+    data = data.dropna(subset=["date", "latitude", "longitude"]).copy()
+    return data
 
 try:
     df = load_data(DATA_PATH)
 except Exception as exc:
-    st.error("BloomDetect could not load the prediction dataset.")
+    st.error("BloomDetect AI could not load the prediction dataset.")
     st.code(str(exc))
     st.stop()
 
 latest_date = df["date"].max()
 latest_df = df[df["date"].eq(latest_date)].copy()
-latest_risk = latest_df[latest_df["risk_label"].eq("Potential Bloom Risk")].copy()
 
-# ----------------------------- Helpers ----------------------
+# ============================================================
+# HELPERS
+# ============================================================
+def normalize_longitude(series):
+    """Convert longitudes to -180..180 for a clean global map."""
+    x = pd.to_numeric(series, errors="coerce")
+    return ((x + 180) % 360) - 180
+
+
+def normalize_one_longitude(value):
+    return ((float(value) + 180) % 360) - 180
+
+
 def geographic_window(data, choice):
-    # These are geographic filters applied to the same dataset.
-    # They are NOT separate ocean datasets.
+    """Geographic filters over the SAME global dataset."""
     if choice == "Indian Ocean study window":
         return data[data["latitude"].between(-40, 30) & data["longitude"].between(20, 120)].copy()
+
     if choice == "Arabian Sea geographic window":
         return data[data["latitude"].between(5, 25) & data["longitude"].between(50, 75)].copy()
+
     if choice == "Bay of Bengal geographic window":
         return data[data["latitude"].between(5, 25) & data["longitude"].between(75, 100)].copy()
+
     return data.copy()
 
-def score_value(series):
-    return pd.to_numeric(series, errors="coerce").fillna(0)
 
-# ----------------------------- Sidebar -----------------------
-st.sidebar.markdown("## 🌊 BloomDetect")
+def numeric_score(series):
+    return pd.to_numeric(series, errors="coerce")
+
+
+def make_ocean_map(data, risk_data, window_name, show_all=True):
+    """Create full observation map with potential-risk overlay."""
+    normal = data.copy()
+    risks = risk_data.copy()
+
+    normal["plot_lon"] = normalize_longitude(normal["longitude"])
+    risks["plot_lon"] = normalize_longitude(risks["longitude"])
+
+    fig = go.Figure()
+
+    if show_all and len(normal):
+        fig.add_trace(go.Scattergeo(
+            lon=normal["plot_lon"],
+            lat=normal["latitude"],
+            mode="markers",
+            name="All observations",
+            marker=dict(
+                size=3.2,
+                color="#2b7893",
+                opacity=0.48,
+                line=dict(width=0),
+            ),
+            customdata=np.column_stack([
+                normal["chla"].fillna(np.nan),
+                normal["risk_label"].astype(str),
+            ]),
+            hovertemplate=(
+                "Latitude: %{lat:.2f}°<br>"
+                "Longitude: %{lon:.2f}°<br>"
+                "Chl-a: %{customdata[0]:.4f}<br>"
+                "Prediction: %{customdata[1]}<extra></extra>"
+            ),
+        ))
+
+    if len(risks):
+        fig.add_trace(go.Scattergeo(
+            lon=risks["plot_lon"],
+            lat=risks["latitude"],
+            mode="markers",
+            name="Potential bloom risk",
+            marker=dict(
+                size=8,
+                color="#ff5b5f",
+                opacity=0.96,
+                line=dict(color="#ffd7d8", width=1),
+            ),
+            customdata=np.column_stack([
+                risks["chla"].fillna(np.nan),
+                numeric_score(risks["risk_probability"]).fillna(np.nan),
+                risks["risk_label"].astype(str),
+            ]),
+            hovertemplate=(
+                "Latitude: %{lat:.2f}°<br>"
+                "Longitude: %{lon:.2f}°<br>"
+                "Chl-a: %{customdata[0]:.4f}<br>"
+                "Model score: %{customdata[1]:.3f}<br>"
+                "Status: %{customdata[2]}<extra></extra>"
+            ),
+        ))
+
+    if window_name == "Global dataset":
+        geo = dict(
+            projection_type="equirectangular",
+            showland=True,
+            landcolor="#d8dedf",
+            showocean=True,
+            oceancolor="#061b25",
+            showcountries=True,
+            countrycolor="#66767b",
+            coastlinecolor="#819095",
+            coastlinewidth=0.8,
+            showlakes=True,
+            lakecolor="#061b25",
+            lonaxis=dict(range=[-180, 180], showgrid=True, gridcolor="rgba(160,190,195,.12)"),
+            lataxis=dict(range=[-90, 90], showgrid=True, gridcolor="rgba(160,190,195,.12)"),
+        )
+    elif window_name == "Arabian Sea geographic window":
+        geo = dict(
+            projection_type="mercator",
+            showland=True,
+            landcolor="#d8dedf",
+            showocean=True,
+            oceancolor="#061b25",
+            showcountries=True,
+            countrycolor="#66767b",
+            coastlinecolor="#819095",
+            lonaxis=dict(range=[48, 78]),
+            lataxis=dict(range=[2, 28]),
+        )
+    elif window_name == "Bay of Bengal geographic window":
+        geo = dict(
+            projection_type="mercator",
+            showland=True,
+            landcolor="#d8dedf",
+            showocean=True,
+            oceancolor="#061b25",
+            showcountries=True,
+            countrycolor="#66767b",
+            coastlinecolor="#819095",
+            lonaxis=dict(range=[72, 103]),
+            lataxis=dict(range=[2, 28]),
+        )
+    else:
+        geo = dict(
+            projection_type="mercator",
+            showland=True,
+            landcolor="#d8dedf",
+            showocean=True,
+            oceancolor="#061b25",
+            showcountries=True,
+            countrycolor="#66767b",
+            coastlinecolor="#819095",
+            lonaxis=dict(range=[15, 125]),
+            lataxis=dict(range=[-43, 33]),
+        )
+
+    fig.update_geos(**geo)
+    fig.update_layout(
+        height=650 if window_name != "Global dataset" else 600,
+        margin=dict(l=0, r=0, t=5, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#b8d0d5"),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.01,
+            xanchor="right",
+            x=1,
+            bgcolor="rgba(4,17,24,.72)",
+            bordercolor="rgba(121,194,207,.12)",
+            borderwidth=1,
+        ),
+    )
+    return fig
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+st.sidebar.markdown("## 🌊 BloomDetect AI")
 st.sidebar.caption("Satellite-based potential bloom-risk screening")
 
-st.sidebar.markdown("### Explore")
-view = st.sidebar.radio(
-    "Map layer",
-    ["Potential risk", "All observations"],
-    label_visibility="collapsed"
-)
-
+st.sidebar.markdown("### Map view")
 window = st.sidebar.selectbox(
     "Geographic window",
     [
         "Indian Ocean study window",
+        "Global dataset",
         "Arabian Sea geographic window",
         "Bay of Bengal geographic window",
-        "Global dataset"
     ],
+    help="These are geographic filters on the same global dataset, not separate datasets.",
 )
 
 score_cutoff = st.sidebar.slider(
-    "Minimum model score",
-    0.0, 1.0, 0.50, 0.05,
-    help="A model score used to filter the displayed predictions. It is not a calibrated probability of a harmful algal bloom."
+    "Risk-score threshold",
+    0.0,
+    1.0,
+    0.05,
+    0.01,
+    help="Only potential-risk locations at or above this model score are highlighted. This is not a calibrated HAB probability.",
+)
+
+show_all = st.sidebar.checkbox(
+    "Show all ocean observations",
+    value=True,
+    help="Keep the full available observation grid visible and overlay potential-risk locations.",
 )
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Dataset status**")
 st.sidebar.write(f"Latest observation  ·  **{latest_date:%d %b %Y}**")
 st.sidebar.write(f"Latest grid cells  ·  **{len(latest_df):,}**")
-st.sidebar.write(f"Latest flagged  ·  **{len(latest_risk):,}**")
-st.sidebar.caption("The geographic windows above are filters on the same dataset, not separate datasets.")
 
-# ----------------------------- Filter ------------------------
+all_latest_risk = latest_df[latest_df["risk_label"].eq("Potential Bloom Risk")].copy()
+st.sidebar.write(f"Latest flagged  ·  **{len(all_latest_risk):,}**")
+st.sidebar.caption("EOS-06 OCM-3 E06OCM_L4_AC is a global-ocean product. Regional names here are geographic viewing windows.")
+
+# ============================================================
+# CURRENT FILTERED DATA
+# ============================================================
 focus = geographic_window(latest_df, window)
-focus_risk = focus[focus["risk_label"].eq("Potential Bloom Risk")].copy()
-focus_risk = focus_risk[score_value(focus_risk["risk_probability"]) >= score_cutoff]
+focus_risk_all = focus[focus["risk_label"].eq("Potential Bloom Risk")].copy()
+focus_risk_all["_score"] = numeric_score(focus_risk_all["risk_probability"])
+focus_risk = focus_risk_all[focus_risk_all["_score"].fillna(0) >= score_cutoff].copy()
 
-# ----------------------------- Hero --------------------------
+# ============================================================
+# HERO
+# ============================================================
 st.markdown(f"""
 <div class="hero">
-  <div class="eyebrow">EOS-06 · OCM-3 · AI SCREENING</div>
-  <h1>BloomDetect AI</h1>
-  <p>
-    A clean spatial view of satellite-derived chlorophyll-a patterns and
-    machine-learning screening signals for <b>potential bloom risk</b>.
-    Built to help people see where additional investigation may be useful.
-  </p>
-  <span class="pill">Latest observation · {latest_date:%d %B %Y}</span>
+    <div class="eyebrow">EOS-06 · OCM-3 · E06OCM_L4_AC</div>
+    <h1>BloomDetect AI</h1>
+    <p>
+        Satellite-based spatial screening of chlorophyll-a patterns to identify
+        <b>potential bloom-risk locations</b> and support further environmental investigation.
+    </p>
+    <span class="hero-tag">Latest available observation · {latest_date:%d %B %Y}</span>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="section-title">Latest situation</div>', unsafe_allow_html=True)
+# ============================================================
+# TOP METRICS
+# ============================================================
+st.markdown('<div class="section-title">Latest ocean view</div>', unsafe_allow_html=True)
 
 m1, m2, m3, m4 = st.columns(4)
 with m1:
-    st.metric("Grid locations", f"{len(latest_df):,}")
+    st.metric("Available grid locations", f"{len(latest_df):,}")
 with m2:
-    st.metric("Potential-risk locations", f"{len(latest_risk):,}")
+    st.metric("Potential-risk locations", f"{len(all_latest_risk):,}")
 with m3:
-    share = len(latest_risk) / len(latest_df) * 100 if len(latest_df) else 0
-    st.metric("Share flagged", f"{share:.2f}%")
+    share = (len(all_latest_risk) / len(latest_df) * 100) if len(latest_df) else 0
+    st.metric("Flagged share", f"{share:.2f}%")
 with m4:
     mean_chla = latest_df["chla"].mean()
-    st.metric("Mean Chl-a", f"{mean_chla:.4f}" if pd.notna(mean_chla) else "N/A")
+    st.metric("Mean chlorophyll-a", f"{mean_chla:.4f}" if pd.notna(mean_chla) else "N/A")
 
 st.markdown("""
 <div class="callout">
-<b>How to read this:</b> BloomDetect produces a model-derived screening signal.
-A high chlorophyll-a value alone does not prove a harmful algal bloom. Species,
-toxins and confirmed bloom occurrence require appropriate environmental and
-field-based validation.
+<b>Interpretation:</b> The full available observation grid is analysed first. Potential-risk locations are then highlighted as a model-derived screening signal. High chlorophyll-a alone does not confirm a harmful algal bloom; species, toxins and confirmed bloom occurrence require appropriate environmental and field validation.
 </div>
 """, unsafe_allow_html=True)
 
-# ----------------------------- Tabs --------------------------
-tab_map, tab_explore, tab_insights, tab_method, tab_data = st.tabs(
-    ["◉ Risk map", "⌖ Location check", "◒ Insights", "⌁ Method", "↓ Data"]
+# ============================================================
+# TABS
+# ============================================================
+tab_map, tab_location, tab_insights, tab_method, tab_data = st.tabs(
+    ["◉ Ocean map", "⌖ Location check", "◒ Insights", "⌁ Method", "↓ Data"]
 )
 
 # ============================================================
-# MAP
+# OCEAN MAP
 # ============================================================
 with tab_map:
-    st.markdown('<div class="section-title">Spatial screening map</div>', unsafe_allow_html=True)
-    st.caption(
-        f"{window} · {len(focus_risk):,} displayed potential-risk locations · "
-        f"model score ≥ {score_cutoff:.2f}"
+    st.markdown('<div class="section-title">Ocean observation map</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-subtitle">{window} · {len(focus):,} available observations · {len(focus_risk):,} highlighted potential-risk locations</div>',
+        unsafe_allow_html=True,
     )
 
-    if view == "Potential risk":
-        map_df = focus_risk.copy()
-    else:
-        map_df = focus.copy()
-        if "risk_probability" in map_df.columns:
-            map_df = map_df[score_value(map_df["risk_probability"]) >= score_cutoff]
+    fig = make_ocean_map(focus, focus_risk, window, show_all=show_all)
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "scrollZoom": True})
 
-    if len(map_df) == 0:
-        st.info("No observations match the selected filters.")
-    else:
-        # Keep all-observation maps lightweight.
-        plot_df = map_df.copy()
-        if view == "All observations" and len(plot_df) > 12000:
-            plot_df = plot_df.sample(12000, random_state=42)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**● Observation grid**")
+        st.caption("The muted points represent the available satellite-derived observation locations for the selected date and geographic window.")
+    with c2:
+        st.markdown("**● Potential-risk overlay**")
+        st.caption(f"The highlighted points meet the selected risk-score threshold of {score_cutoff:.2f}.")
 
-        hover = {
-            "latitude": ":.2f",
-            "longitude": ":.2f",
-            "chla": ":.4f",
-            "risk_probability": ":.3f",
-            "risk_label": True,
-        }
-        hover = {k: v for k, v in hover.items() if k in plot_df.columns}
-
-        fig = px.scatter_geo(
-            plot_df,
-            lat="latitude",
-            lon="longitude",
-            color="risk_label" if view == "All observations" else None,
-            size="risk_probability" if view == "Potential risk" and plot_df["risk_probability"].notna().any() else None,
-            hover_data=hover,
-            projection="natural earth",
-        )
-        if view == "Potential risk":
-            fig.update_traces(marker=dict(color="#ff6673", opacity=.82, line=dict(width=0)))
-        fig.update_geos(
-            showcountries=True,
-            showcoastlines=True,
-            coastlinecolor="rgba(170,210,216,.55)",
-            showland=True,
-            landcolor="#d8dfdc",
-            showocean=True,
-            oceancolor="#081d28",
-            lakecolor="#081d28",
-        )
-        fig.update_layout(
-            height=680,
-            margin=dict(l=0, r=0, t=10, b=0),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#b9d5da"),
-            legend_title_text="Prediction",
-        )
-        st.plotly_chart(fig, width="stretch")
-
-    st.markdown("### What this map is for")
-    a, b, c = st.columns(3)
-    with a:
-        st.markdown("**01 · Discover**")
-        st.caption("See where the model is flagging potential bloom-risk patterns.")
-    with b:
-        st.markdown("**02 · Prioritize**")
-        st.caption("Use the score filter to build a smaller screening list.")
-    with c:
-        st.markdown("**03 · Validate**")
-        st.caption("Use flagged locations to support further environmental or field investigation.")
+    if window != "Global dataset":
+        st.info("This is a geographic viewing window over the same global EOS-06 analysed chlorophyll dataset. It is not a separate regional dataset.")
 
 # ============================================================
 # LOCATION CHECK
 # ============================================================
-with tab_explore:
-    st.markdown('<div class="section-title">Check a location</div>', unsafe_allow_html=True)
-    st.caption("Enter approximate coordinates. BloomDetect returns the nearest available satellite grid cell.")
+with tab_location:
+    st.markdown('<div class="section-title">Location check</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-subtitle">Enter coordinates to inspect the nearest available observation on the latest date.</div>', unsafe_allow_html=True)
 
     x1, x2 = st.columns(2)
     with x1:
-        user_lat = st.number_input("Latitude", -90.0, 90.0, 17.4, 0.1)
+        user_lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=17.4, step=0.25, format="%.2f")
     with x2:
-        user_lon = st.number_input("Longitude", -180.0, 180.0, 78.5, 0.1)
+        user_lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=78.5, step=0.25, format="%.2f")
 
     if st.button("Find nearest observation", type="primary"):
         working = latest_df.dropna(subset=["latitude", "longitude"]).copy()
+
+        # Handle 0..360 source longitudes and -180..180 user input consistently.
+        target_lon = normalize_one_longitude(user_lon)
+        working_plot_lon = normalize_longitude(working["longitude"])
+
         lat_scale = 111.0
-        lon_scale = 111.0 * np.cos(np.deg2rad(user_lat))
-        lon_scale = max(lon_scale, 1.0)
+        lon_scale = max(111.0 * np.cos(np.deg2rad(user_lat)), 1.0)
 
         working["_distance_km"] = np.sqrt(
             ((working["latitude"] - user_lat) * lat_scale) ** 2 +
-            ((working["longitude"] - user_lon) * lon_scale) ** 2
+            ((working_plot_lon - target_lon) * lon_scale) ** 2
         )
 
         nearest = working.loc[working["_distance_km"].idxmin()]
 
-        st.markdown("### Nearest satellite grid cell")
+        st.markdown("### Nearest available grid cell")
         q1, q2, q3, q4 = st.columns(4)
         with q1:
             st.metric("Latitude", f"{nearest['latitude']:.2f}°")
         with q2:
-            st.metric("Longitude", f"{nearest['longitude']:.2f}°")
+            st.metric("Longitude", f"{normalize_one_longitude(nearest['longitude']):.2f}°")
         with q3:
             val = nearest["chla"]
-            st.metric("Chl-a", f"{val:.4f}" if pd.notna(val) else "N/A")
+            st.metric("Chlorophyll-a", f"{val:.4f}" if pd.notna(val) else "N/A")
         with q4:
-            st.metric("Distance", f"{nearest['_distance_km']:.1f} km")
+            st.metric("Approx. distance", f"{nearest['_distance_km']:.1f} km")
 
-        score = nearest.get("risk_probability", np.nan)
-        status = nearest["risk_label"]
+        status = str(nearest["risk_label"])
+        score = pd.to_numeric(pd.Series([nearest.get("risk_probability", np.nan)]), errors="coerce").iloc[0]
 
         if status == "Potential Bloom Risk":
-            st.error("Potential bloom-risk flag at the nearest grid cell.")
+            st.warning("The nearest grid cell is flagged for potential bloom risk.")
         else:
-            st.success("No potential bloom-risk flag at the nearest grid cell.")
+            st.success("The nearest grid cell is not flagged for potential bloom risk.")
 
         if pd.notna(score):
-            st.progress(
-                float(np.clip(score, 0, 1)),
-                text=f"Model score · {float(score):.3f}"
-            )
+            st.progress(float(np.clip(score, 0, 1)), text=f"Model score · {float(score):.3f}")
 
-        st.caption(
-            "The nearest-grid result is a spatial approximation. The model score is a screening indicator, not a confirmed HAB probability."
-        )
+        st.caption("This location check is an approximate nearest-grid lookup. The model score is a screening indicator, not a calibrated probability of a harmful algal bloom.")
 
 # ============================================================
 # INSIGHTS
 # ============================================================
 with tab_insights:
-    st.markdown('<div class="section-title">Decision-support view</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Screening insights</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-subtitle">A compact view of the latest model-derived screening results.</div>', unsafe_allow_html=True)
 
-    risk_scores = score_value(latest_risk["risk_probability"])
-    i1, i2, i3 = st.columns(3)
+    scores = numeric_score(all_latest_risk["risk_probability"]).dropna()
+
+    i1, i2, i3, i4 = st.columns(4)
     with i1:
-        st.metric("Flagged now", f"{len(latest_risk):,}")
+        st.metric("Flagged locations", f"{len(all_latest_risk):,}")
     with i2:
-        st.metric("Highest model score", f"{risk_scores.max():.3f}" if len(risk_scores) else "N/A")
+        st.metric("Highest model score", f"{scores.max():.3f}" if len(scores) else "N/A")
     with i3:
-        st.metric("Median model score", f"{risk_scores.median():.3f}" if len(risk_scores) else "N/A")
+        st.metric("Median model score", f"{scores.median():.3f}" if len(scores) else "N/A")
+    with i4:
+        threshold_count = int((scores >= score_cutoff).sum()) if len(scores) else 0
+        st.metric("Above selected threshold", f"{threshold_count:,}")
 
-    if len(latest_risk):
-        chart_df = latest_risk[["risk_probability"]].copy()
-        chart_df["Model score"] = score_value(chart_df["risk_probability"])
-
-        fig_hist = px.histogram(
-            chart_df,
-            x="Model score",
-            nbins=20,
-            title="Distribution of model scores among flagged locations"
-        )
-        fig_hist.update_layout(
-            height=360,
-            margin=dict(l=0, r=0, t=55, b=0),
+    if len(scores):
+        chart = go.Figure()
+        chart.add_trace(go.Histogram(
+            x=scores,
+            nbinsx=24,
+            marker_color="#39aeb9",
+            opacity=.88,
+            name="Model score",
+        ))
+        chart.add_vline(x=score_cutoff, line_dash="dash", line_color="#ff6a6d", annotation_text="Selected threshold")
+        chart.update_layout(
+            title="Model-score distribution among flagged locations",
+            height=380,
+            margin=dict(l=10, r=10, t=55, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#b8d0d5"),
+            xaxis_title="Model score",
+            yaxis_title="Locations",
         )
-        st.plotly_chart(fig_hist, width="stretch")
+        st.plotly_chart(chart, use_container_width=True)
 
         st.markdown("### Screening queue")
         queue_cols = ["latitude", "longitude", "chla", "risk_probability"]
-        queue = latest_risk[queue_cols].copy()
-        queue = queue.sort_values("risk_probability", ascending=False, na_position="last").head(20)
+        queue = all_latest_risk[queue_cols].copy()
+        queue["risk_probability"] = numeric_score(queue["risk_probability"])
+        queue = queue.sort_values("risk_probability", ascending=False, na_position="last").head(25)
         queue.columns = ["Latitude", "Longitude", "Chl-a", "Model score"]
-        st.dataframe(queue, width="stretch", hide_index=True)
-
-        st.caption(
-            "The queue is intended for prioritization of follow-up investigation. It is not an official public-health or fisheries warning."
-        )
+        st.dataframe(queue, use_container_width=True, hide_index=True)
     else:
-        st.info("No potential-risk locations are present in the current latest-date dataset.")
+        st.info("No potential-risk locations are present in the latest observation.")
+
+    st.markdown("""
+    <div class="callout">
+    The screening queue is intended to help prioritize locations for additional investigation. It is not an official fisheries, public-health or emergency warning.
+    </div>
+    """, unsafe_allow_html=True)
 
 # ============================================================
 # METHOD
 # ============================================================
 with tab_method:
-    st.markdown('<div class="section-title">From satellite data to screening signal</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">How BloomDetect works</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-subtitle">From global satellite observations to a spatial screening signal.</div>', unsafe_allow_html=True)
 
     steps = [
-        ("01", "Observe", "EOS-06 OCM-3 ocean-colour observations provide chlorophyll-a information."),
-        ("02", "Prepare", "Invalid observations and duplicate or unusable source records are handled before analysis."),
-        ("03", "Build context", "Previous observations and historical baseline features describe how chlorophyll-a changes over time."),
-        ("04", "Classify", "A machine-learning model produces a Normal or Potential Bloom Risk prediction."),
-        ("05", "Map", "Predictions are returned to their geographic grid locations."),
-        ("06", "Investigate", "Flagged locations can support targeted review and field/environmental validation."),
+        ("01", "Observe", "EOS-06 OCM-3 analysed chlorophyll-a fields provide daily global-ocean observations."),
+        ("02", "Prepare", "Source records are cleaned and organised by location and date before feature construction."),
+        ("03", "Build temporal context", "Previous chlorophyll-a values, historical baseline and recent behaviour provide context for each observation."),
+        ("04", "Classify", "The trained machine-learning model assigns each available location a Normal or Potential Bloom Risk prediction."),
+        ("05", "Map", "Predictions are returned to their geographic grid cells so users can inspect spatial patterns."),
+        ("06", "Investigate", "Flagged locations can support prioritization for additional environmental or field validation."),
     ]
 
     for num, title, desc in steps:
         st.markdown(
             f"""
-            <div class="card" style="margin-bottom:10px; min-height:0;">
-                <span style="color:#70d2d9;font-weight:800;letter-spacing:.08em;">{num}</span>
+            <div class="info-card" style="margin-bottom:10px;">
+                <span style="color:#67d1d8;font-weight:800;letter-spacing:.08em;">{num}</span>
                 <span style="color:#effbfc;font-size:1.05rem;font-weight:700;margin-left:12px;">{title}</span>
                 <div style="color:#8faeb5;margin-top:7px;line-height:1.55;">{desc}</div>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
-    st.markdown("### What BloomDetect does not claim")
+    st.markdown("### Scientific interpretation")
     st.markdown("""
-    - It does **not** identify a specific algal species.
-    - It does **not** measure algal toxins.
-    - It does **not** confirm that a flagged location contains a harmful algal bloom.
-    - It is **not** a live sensor network or guaranteed real-time warning service.
-    - Satellite screening should be complemented by appropriate environmental and field observations.
+    - A potential-risk flag is a **model-derived screening signal**.
+    - High chlorophyll-a alone does **not** prove a harmful algal bloom.
+    - The current dataset does not provide confirmed HAB species or toxin labels.
+    - Satellite observations complement, rather than replace, field and environmental validation.
+    - The application is an **early-warning support prototype**, not a guaranteed real-time warning service.
     """)
 
-    st.markdown("### Data provenance")
-    st.caption(
-        "The project uses EOS-06 / OCM-3 analysed chlorophyll data from the MOSDAC / ISRO data ecosystem. "
-        "The MOSDAC algorithm documentation describes daily analysed global-ocean chlorophyll fields."
-    )
+    st.markdown("### Dataset context")
+    st.caption("EOS-06 / OCM-3 E06OCM_L4_AC is documented by MOSDAC as a daily analysed chlorophyll product for the global ocean at 0.25° × 0.25° spatial resolution. Regional options in this dashboard are geographic filters applied to that same dataset.")
 
 # ============================================================
 # DATA
 # ============================================================
 with tab_data:
     st.markdown('<div class="section-title">Data & downloads</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-subtitle">Inspect the latest observation grid and export the screening results.</div>', unsafe_allow_html=True)
 
     d1, d2, d3 = st.columns(3)
     with d1:
-        st.metric("Dataset rows", f"{len(df):,}")
+        st.metric("Rows in prediction file", f"{len(df):,}")
     with d2:
         st.metric("Dates represented", f"{df['date'].dt.date.nunique():,}")
     with d3:
-        st.metric("Latest date", f"{latest_date:%d %b %Y}")
+        st.metric("Latest observation", f"{latest_date:%d %b %Y}")
 
-    st.markdown("### Download the current screening view")
+    st.markdown("### Current geographic view")
     download_cols = ["date", "latitude", "longitude", "chla", "risk_probability", "risk_label"]
     download_cols = [c for c in download_cols if c in focus.columns]
     current_download = focus[download_cols].copy()
 
     st.download_button(
-        "Download observations as CSV",
+        "Download current observations CSV",
         data=current_download.to_csv(index=False).encode("utf-8"),
         file_name="bloomdetect_current_observations.csv",
         mime="text/csv",
-        on_click="ignore",
         type="primary",
     )
 
-    st.markdown("### Latest flagged locations")
-    if len(latest_risk):
+    st.markdown("### Latest potential-risk locations")
+    if len(all_latest_risk):
         alert_cols = ["latitude", "longitude", "chla", "risk_probability"]
-        alert_table = latest_risk[alert_cols].copy()
-        alert_table = alert_table.sort_values("risk_probability", ascending=False, na_position="last").head(25)
+        alert_table = all_latest_risk[alert_cols].copy()
+        alert_table["risk_probability"] = numeric_score(alert_table["risk_probability"])
+        alert_table = alert_table.sort_values("risk_probability", ascending=False, na_position="last").head(50)
         alert_table.columns = ["Latitude", "Longitude", "Chl-a", "Model score"]
-        st.dataframe(alert_table, width="stretch", hide_index=True)
+        st.dataframe(alert_table, use_container_width=True, hide_index=True)
 
         alert_text = (
             f"BloomDetect AI screening summary — {latest_date:%d %B %Y}\n\n"
-            f"{len(latest_risk):,} locations were flagged for potential bloom risk in the latest available observation.\n"
+            f"Available latest-date grid locations: {len(latest_df):,}\n"
+            f"Potential bloom-risk locations: {len(all_latest_risk):,}\n\n"
             "This is a model-derived screening signal. It does not confirm a harmful algal bloom, species, toxin, or public-health event.\n"
             "Further environmental and/or field validation is recommended."
         )
@@ -601,19 +737,20 @@ with tab_data:
             data=alert_text,
             file_name="bloomdetect_screening_summary.txt",
             mime="text/plain",
-            on_click="ignore",
         )
     else:
-        st.info("There are no flagged locations in the latest observation.")
+        st.info("No potential-risk locations are present in the latest observation.")
 
-    st.markdown("### Data preview")
+    st.markdown("### Latest observation preview")
     preview_cols = ["date", "latitude", "longitude", "chla", "risk_probability", "risk_label"]
     preview_cols = [c for c in preview_cols if c in latest_df.columns]
-    st.dataframe(latest_df[preview_cols].head(100), width="stretch", hide_index=True)
+    st.dataframe(latest_df[preview_cols].head(100), use_container_width=True, hide_index=True)
 
-# ----------------------------- Footer ------------------------
+# ============================================================
+# FOOTER
+# ============================================================
 st.markdown("---")
 st.markdown(
     '<div class="small-muted">BloomDetect AI · EOS-06 OCM-3 · Potential bloom-risk screening · Research prototype</div>',
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
