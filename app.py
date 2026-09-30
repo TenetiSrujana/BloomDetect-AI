@@ -47,12 +47,12 @@ latest_date = df["date"].max()
 latest = df[df["date"] == latest_date].copy()
 risk = latest[latest["risk_flag"]].copy()
 
-PAGES = ["home", "map", "checker", "compare", "insights", "method", "data"]
+PAGES = ["home", "map", "checker", "hotspots", "insights", "method", "data"]
 NAV = {
     "home": "Home",
     "map": "Risk Map",
     "checker": "Risk Checker",
-    "compare": "Compare",
+    "hotspots": "Hotspots",
     "insights": "Insights",
     "method": "How It Works",
     "data": "Data",
@@ -113,7 +113,10 @@ html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:
 .map-card{position:relative;z-index:2;background:rgba(255,255,255,.74);border-radius:24px;padding:5px;border:2px solid #9bcfd4;box-shadow:0 18px 48px rgba(15,91,101,.10);backdrop-filter:blur(16px);overflow:hidden}
 .map-study-label{height:48px;display:flex;align-items:center;gap:12px;padding:0 2px;color:#174b56}.map-study-label span{font:800 .66rem Manrope,sans-serif;letter-spacing:.15em;color:#0a9ba8}.map-study-label b{font-size:.95rem}.map-legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap;color:#4f747b;font-size:.86rem;padding:13px 14px}.legend-gradient{width:180px;height:10px;border-radius:999px;background:linear-gradient(90deg,#09264a,#0b76a3,#19c8c6,#b7e76b,#ffe27c)}.risk-dot{width:12px;height:12px;border-radius:50%;background:#ff5364;border:2px solid white}
 /* Inputs */
-div[data-testid="stNumberInput"]{position:relative!important;z-index:4!important}
+div[data-testid="stNumberInput"]{position:relative!important;z-index:4!important;margin-top:0!important}
+div[data-testid="stNumberInput"] > label{display:none!important}
+div[data-testid="stNumberInput"] [data-testid="stWidgetLabel"]{display:none!important}
+.coord-label{font:800 .82rem Manrope,sans-serif;color:#285761;letter-spacing:.02em;margin:0 0 6px!important}
 div[data-testid="stNumberInput"] input,div[data-testid="stNumberInput"] input[type="number"]{border-radius:13px!important;background:rgba(255,255,255,.94)!important;color:#174b56!important;border:1.5px solid rgba(75,169,179,.46)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 7px 18px rgba(15,91,101,.06)!important;font-size:1.02rem!important;font-weight:800!important;height:44px!important}
 div[data-testid="stNumberInput"] button{width:32px!important;height:32px!important;margin-right:4px!important;border-radius:9px!important;background:rgba(222,249,249,.98)!important;color:#087f8d!important;border:1px solid rgba(88,181,188,.58)!important;box-shadow:0 3px 8px rgba(15,91,101,.08)!important;opacity:1!important}
 div[data-testid="stNumberInput"] button:hover{background:#c9f3f2!important;color:#075d6c!important}
@@ -133,8 +136,8 @@ div[data-testid="stNumberInput"] [data-baseweb="input"] input{
 }
 
 /* Coordinate checker */
-.checker-input-card{position:relative;z-index:3;background:rgba(255,255,255,.84);border:1.5px solid rgba(113,190,197,.40);border-radius:25px;box-shadow:0 16px 42px rgba(15,91,101,.09);padding:25px 27px 22px;backdrop-filter:blur(18px)}
-.entered-line{margin-top:10px;padding:13px 15px;border-radius:14px;background:#eafafa;border:1px solid #d4eeee;color:#53777e;font-size:.92rem;line-height:1.6}
+.checker-input-card{position:relative;z-index:3;padding:0;background:transparent;border:0;box-shadow:none;backdrop-filter:none}
+.entered-line{margin-top:14px;padding:13px 15px;border-radius:14px;background:#eafafa;border:1px solid #d4eeee;color:#53777e;font-size:.92rem;line-height:1.6}
 .nearest-line{margin-top:8px;color:#66848b;font-size:.92rem;line-height:1.6}
 /* Result grids */
 .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.result-grid div{padding:12px 14px;background:linear-gradient(145deg,#f5fdfd,#e9f8f8);border:1px solid #cbe8e9;border-radius:15px}.result-grid span{display:block;font-size:.76rem;color:#78959b;margin-bottom:5px}.result-grid b{font-size:.98rem;color:#194b55}
@@ -232,7 +235,7 @@ def map_figure(view, show_risk=True):
         range_color=(0, vmax),
     )
     fig.update_traces(
-        marker=dict(size=2.15, opacity=.62, line=dict(width=0)),
+        marker=dict(size=2.5, opacity=.72, line=dict(width=0)),
         hovertemplate="Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.4f}<extra></extra>"
     )
 
@@ -243,8 +246,16 @@ def map_figure(view, show_risk=True):
             custom_data=["latitude", "longitude", "chla"],
             projection="equirectangular",
         )
+        # Soft halo makes clustered screening locations visible without turning the map into confetti.
+        halo = px.scatter_geo(
+            risk_subset, lat="latitude", lon="plot_lon",
+            custom_data=["latitude", "longitude", "chla"], projection="equirectangular"
+        )
+        fig.add_trace(halo.data[0])
+        fig.data[-1].marker = dict(size=16, color="#ff5365", opacity=.13, line=dict(width=0))
+        fig.data[-1].showlegend = False
         fig.add_trace(risk_fig.data[0])
-        fig.data[-1].marker = dict(size=8.5, color="#ff5365", opacity=.98, line=dict(width=1.8, color="#ffffff"))
+        fig.data[-1].marker = dict(size=6.5, color="#ff5365", opacity=.98, line=dict(width=1.4, color="#ffffff"))
         fig.data[-1].name = "Potential bloom risk"
         fig.data[-1].hovertemplate = "Potential bloom-risk flag<br>Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.4f}<extra></extra>"
 
@@ -338,7 +349,7 @@ if st.session_state.page == "home":
     feats=[
         ("🌍","Risk Map","See the latest chlorophyll-a field and potential-risk flags spatially."),
         ("📍","Risk Checker","Enter latitude and longitude and inspect the nearest processed grid cell."),
-        ("↔️","Compare","Compare two locations using the same latest observation fields."),
+        ("🔥","Hotspots","Group nearby flagged cells into areas that deserve closer investigation."),
         ("📊","Insights","Understand the latest field, risk share and geographic concentration."),
     ]
     cols=st.columns(4,gap="medium")
@@ -364,15 +375,15 @@ elif st.session_state.page == "map":
 # CHECKER
 # -----------------------------
 elif st.session_state.page == "checker":
-    section("02 · Coordinate screening", "Check a location.", "Enter a latitude and longitude. BloomDetect finds the nearest processed 0.25° grid cell and reports its latest screening result.")
+    section("02 · Coordinate screening", "Check a location.", "Enter a coordinate to see the nearest processed grid cell, its screening result and the signals behind that result.")
     left,right=st.columns([.78,1.22],gap="large")
     with left:
-        st.markdown('<div class="checker-input-card">',unsafe_allow_html=True)
-        lat=st.number_input("Latitude",min_value=-90.0,max_value=90.0,value=18.0,step=.25,format="%.2f",key="checker_lat")
-        lon=st.number_input("Longitude",min_value=-180.0,max_value=180.0,value=78.0,step=.25,format="%.2f",key="checker_lon")
-        st.markdown(f'<div class="entered-line"><b>Selected:</b> {lat:.2f}° latitude · {lon:.2f}° longitude</div>',unsafe_allow_html=True)
-        st.markdown('<div class="nearest-line">Screening uses the nearest processed 0.25° grid cell.</div>',unsafe_allow_html=True)
-        st.markdown('</div>',unsafe_allow_html=True)
+        st.markdown('<div class="coord-label">Latitude</div>',unsafe_allow_html=True)
+        lat=st.number_input("Latitude",min_value=-90.0,max_value=90.0,value=18.0,step=.25,format="%.2f",key="checker_lat",label_visibility="collapsed")
+        st.markdown('<div class="coord-label" style="margin-top:16px!important">Longitude</div>',unsafe_allow_html=True)
+        lon=st.number_input("Longitude",min_value=-180.0,max_value=180.0,value=78.0,step=.25,format="%.2f",key="checker_lon",label_visibility="collapsed")
+        st.markdown(f'<div class="entered-line"><b>Selected coordinate</b><br>{lat:.2f}° latitude · {lon:.2f}° longitude</div>',unsafe_allow_html=True)
+        st.markdown('<div class="nearest-line">The screening result is taken from the nearest processed 0.25° grid cell.</div>',unsafe_allow_html=True)
 
     row=checker_row(lat,lon)
     with right:
@@ -381,9 +392,10 @@ elif st.session_state.page == "checker":
         status_color="#d94d5e" if risk_yes else "#087f8d"
         prob=probability_text(row.get("risk_probability",np.nan))
         st.markdown(f"""
-        <div class="card" style="min-height:330px">
+        <div class="card" style="min-height:0">
           <div class="mini-label">Nearest processed observation</div>
-          <h3 style="font-size:2rem;margin-bottom:8px">{lat:.2f}° · {lon:.2f}°</h3><div class="nearest-line">Nearest processed cell used for screening: {row.latitude:.2f}° · {row.longitude:.2f}°</div>
+          <h3 style="font-size:2rem;margin-bottom:7px">{row.latitude:.2f}° · {row.longitude:.2f}°</h3>
+          <div class="nearest-line">Your input: {lat:.2f}° · {lon:.2f}°</div>
           <div class="result-grid">
             <div><span>Date</span><b>{row.date.strftime('%d %B %Y')}</b></div>
             <div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div>
@@ -392,33 +404,54 @@ elif st.session_state.page == "checker":
           </div>
         </div>
         """,unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="note" style="margin-top:16px"><b>How it works:</b> Your selected coordinate stays visible above. The model checks the nearest processed grid cell, so nearby coordinates can map to the same observation. '
-        f' '
-        f'The result updates immediately when you change the coordinates. '
-        f'Nearby inputs can show the same result when they still map to the same grid cell.</div>',
-        unsafe_allow_html=True
-    )
+
+    anomaly=float(row.get("chla_anomaly",np.nan)) if pd.notna(row.get("chla_anomaly",np.nan)) else np.nan
+    change=float(row.get("chla_change",np.nan)) if pd.notna(row.get("chla_change",np.nan)) else np.nan
+    anomaly_threshold=0.059076173328496344
+    change_threshold=0.02007450088858604
+    if risk_yes:
+        explanation="The latest cell crosses both project screening conditions: its chlorophyll-a anomaly and recent change are above the proxy thresholds used to create the potential-risk label."
+    else:
+        checks=[]
+        if pd.notna(anomaly): checks.append("anomaly is above the threshold" if anomaly >= anomaly_threshold else "anomaly is below the threshold")
+        if pd.notna(change): checks.append("recent change is above the threshold" if change >= change_threshold else "recent change is below the threshold")
+        explanation="This cell is not flagged by the current proxy screening rule. " + ("; ".join(checks).capitalize() + "." if checks else "Supporting historical signals are unavailable for this cell.")
+    st.markdown(f'<div class="note" style="margin-top:18px"><b>Why this result?</b> {explanation} This is a screening explanation, not proof of a harmful bloom.</div>',unsafe_allow_html=True)
 
 # -----------------------------
-# COMPARE
+# HOTSPOTS
 # -----------------------------
-elif st.session_state.page == "compare":
-    section("03 · Compare locations", "Compare two places side by side.", "Use this when you want to inspect whether two coordinates show different latest chlorophyll-a signals or screening results.")
-    c1,c2=st.columns(2,gap="large")
-    with c1:
-        st.markdown('<h3 class="input-title">Location A</h3>',unsafe_allow_html=True)
-        a_lat=st.number_input("Latitude A",-90.,90.,18.,.25,format="%.2f",key="a_lat")
-        a_lon=st.number_input("Longitude A",-180.,180.,78.,.25,format="%.2f",key="a_lon")
-    with c2:
-        st.markdown('<h3 class="input-title">Location B</h3>',unsafe_allow_html=True)
-        b_lat=st.number_input("Latitude B",-90.,90.,20.,.25,format="%.2f",key="b_lat")
-        b_lon=st.number_input("Longitude B",-180.,180.,90.,.25,format="%.2f",key="b_lon")
-    ra,rb=checker_row(a_lat,a_lon),checker_row(b_lat,b_lon)
-    st.markdown('<div style="height:20px"></div>',unsafe_allow_html=True)
-    for name,row in [("Location A",ra),("Location B",rb)]:
-        status="Potential bloom risk" if row.risk_flag else "No potential bloom-risk flag"
-        st.markdown(f'<div class="card compare-result" style="margin-bottom:14px"><div class="mini-label">{name}</div><h3>{(a_lat if name=="Location A" else b_lat):.2f}° · {(a_lon if name=="Location A" else b_lon):.2f}°</h3><div class="nearest-line">Nearest processed cell used for screening: {row.latitude:.2f}° · {row.longitude:.2f}°</div><div class="result-grid"><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Screening</span><b>{status}</b></div><div><span>Anomaly</span><b>{safe(row.get("chla_anomaly",np.nan))}</b></div><div><span>Recent change</span><b>{safe(row.get("chla_change",np.nan))}</b></div></div></div>',unsafe_allow_html=True)
+elif st.session_state.page == "hotspots":
+    section("03 · Spatial concentration", "Find the areas worth investigating.", "Instead of comparing arbitrary coordinates, this page groups nearby flagged cells into practical hotspot zones so the screening result can guide follow-up work.")
+    study=latest[latest.latitude.between(-40,30) & latest.plot_lon.between(20,120)].copy()
+    risk_study=study[study.risk_flag].copy()
+    if risk_study.empty:
+        st.markdown('<div class="card"><h3>No potential-risk cells in the current study view.</h3><p>The latest processed field does not contain flagged cells inside the Indian Ocean study area.</p></div>',unsafe_allow_html=True)
+    else:
+        # A simple 2° × 2° spatial aggregation creates interpretable hotspot zones from the current field.
+        risk_study["lat_zone"]=(np.floor(risk_study.latitude/2)*2).round(2)
+        risk_study["lon_zone"]=(np.floor(risk_study.plot_lon/2)*2).round(2)
+        zones=(risk_study.groupby(["lat_zone","lon_zone"],as_index=False)
+               .agg(flagged_cells=("risk_flag","size"),mean_chla=("chla","mean"),max_chla=("chla","max"))
+               .sort_values(["flagged_cells","mean_chla"],ascending=False).head(12))
+        c1,c2,c3=st.columns(3,gap="medium")
+        with c1: metric("Flagged cells",f"{len(risk_study):,}","current study area")
+        with c2: metric("Hotspot zones",f"{len(zones):,}","2° × 2° grouping")
+        with c3: metric("Largest cluster",f"{int(zones.iloc[0].flagged_cells):,}","flagged cells")
+        st.markdown('<div class="section" style="padding-top:30px"><div class="kicker">01 · Priority areas</div><h2>Where the flags concentrate.</h2><p>These zones are not severity rankings. They simply show where more screened cells are located close together.</p></div>',unsafe_allow_html=True)
+        hfig=px.scatter_geo(zones,lat="lat_zone",lon="lon_zone",size="flagged_cells",color="flagged_cells",color_continuous_scale=[[0,"#ffd6dc"],[.45,"#ff6a78"],[1,"#b91f3a"]],projection="equirectangular",hover_data={"lat_zone":":.2f","lon_zone":":.2f","flagged_cells":True,"mean_chla":":.4f","max_chla":":.4f"})
+        hfig.update_geos(showland=True,landcolor="#dcebe8",showocean=True,oceancolor="#edf9fa",showcoastlines=True,coastlinecolor="#4f9aa4",showcountries=True,countrycolor="#9abdc2",bgcolor="#edf9fa",lataxis_range=[-40,30],lonaxis_range=[20,120],projection_scale=1.08,center=dict(lat=-5,lon=70))
+        hfig.update_layout(height=560,margin=dict(l=0,r=0,t=0,b=0),paper_bgcolor="#edf9fa",plot_bgcolor="#edf9fa",font=dict(color="#174b56"),coloraxis_colorbar=dict(title="Flagged cells",title_font=dict(color="#174b56"),tickfont=dict(color="#174b56"),bgcolor="rgba(255,255,255,.82)",thickness=14,len=.55))
+        st.plotly_chart(hfig,use_container_width=True,config={"scrollZoom":False,"displaylogo":False})
+        st.markdown('<div class="section" style="padding-top:25px"><div class="kicker">02 · Investigation list</div><h2>Hotspot zones to inspect first.</h2></div>',unsafe_allow_html=True)
+        show_zones=zones.copy()
+        show_zones["Latitude zone"]=show_zones["lat_zone"].map(lambda x:f"{x:.2f}°")
+        show_zones["Longitude zone"]=show_zones["lon_zone"].map(lambda x:f"{x:.2f}°")
+        show_zones["Mean Chl-a"]=show_zones["mean_chla"].round(4)
+        show_zones["Max Chl-a"]=show_zones["max_chla"].round(4)
+        show_zones=show_zones[["Latitude zone","Longitude zone","flagged_cells","Mean Chl-a","Max Chl-a"]].rename(columns={"flagged_cells":"Flagged cells"})
+        st.dataframe(show_zones,use_container_width=True,hide_index=True)
+        st.markdown('<div class="note"><b>Use:</b> select a hotspot on the map, then inspect individual coordinates in Risk Checker. A hotspot is a concentration of screening flags, not a confirmed HAB or severity score.</div>',unsafe_allow_html=True)
 
 # -----------------------------
 # INSIGHTS
