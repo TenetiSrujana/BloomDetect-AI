@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -68,53 +69,60 @@ def go(page):
 st.markdown(r"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
-:root{--ink:#103f49;--muted:#65848b;--aqua:#0aa7b2;--aqua2:#7be6e1;--pale:#f4ffff;--deep:#07576a;--line:#d8eeee;--shadow:0 18px 55px rgba(15,91,101,.10)}
-html,body,[data-testid="stAppViewContainer"]{background:#f4ffff!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif!important}
-.stApp{background:linear-gradient(180deg,#fbffff 0%,#effcfc 45%,#f9ffff 100%)!important;overflow-x:hidden}
-[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer, [data-testid="stSidebar"]{display:none!important}
-.block-container{max-width:1480px!important;padding:18px 46px 90px!important}
-/* full-page animated ocean */
-.stApp:before{content:"";position:fixed;inset:auto -10% 0;height:230px;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 18% 60%,rgba(35,198,205,.20) 0 20%,transparent 21%),radial-gradient(ellipse at 62% 45%,rgba(63,214,224,.16) 0 25%,transparent 26%),radial-gradient(ellipse at 92% 60%,rgba(21,170,192,.15) 0 22%,transparent 23%);filter:blur(2px);animation:waterMove 9s ease-in-out infinite alternate}
-.stApp:after{content:"◦   ·       ◦       ·    ◦        ·       ◦";position:fixed;left:4%;bottom:-80px;z-index:0;pointer-events:none;color:rgba(8,153,169,.16);font-size:24px;letter-spacing:60px;line-height:80px;animation:bubbleRise 16s linear infinite}
+:root{--ink:#123f49;--muted:#64858d;--aqua:#10aeb7;--aqua2:#8be9e5;--pale:#f2fcfc;--deep:#07576a;--line:#d3ebec;--glass:rgba(255,255,255,.66);--shadow:0 18px 55px rgba(15,91,101,.10)}
+html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif!important}
+.stApp{background:linear-gradient(180deg,#fbffff 0%,#eefbfb 46%,#fbffff 100%)!important;overflow-x:hidden}
+[data-testid="stHeader"],[data-testid="stToolbar"],#MainMenu,footer,[data-testid="stSidebar"]{display:none!important}
+.block-container{max-width:1420px!important;padding:18px 44px 90px!important}
+/* Whole-site ocean motion */
+.stApp:before{content:"";position:fixed;left:-10%;right:-10%;bottom:-110px;height:260px;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 15% 55%,rgba(42,205,211,.20) 0 18%,transparent 19%),radial-gradient(ellipse at 55% 45%,rgba(71,224,222,.15) 0 22%,transparent 23%),radial-gradient(ellipse at 90% 60%,rgba(15,171,191,.15) 0 20%,transparent 21%);filter:blur(2px);animation:waterMove 10s ease-in-out infinite alternate}
+.stApp:after{content:"◦     ·        ◦        ·        ◦        ·        ◦";position:fixed;left:5%;bottom:-80px;z-index:0;pointer-events:none;color:rgba(8,153,169,.14);font-size:25px;letter-spacing:58px;animation:bubbleRise 18s linear infinite}
 @keyframes waterMove{from{transform:translateX(-3%) scaleX(1.02)}to{transform:translateX(3%) scaleX(1.08)}}
-@keyframes bubbleRise{from{transform:translateY(70px);opacity:.05}50%{opacity:.25}to{transform:translateY(-95vh);opacity:.03}}
-/* brand */
-.brand-bar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border:1px solid var(--line);background:rgba(255,255,255,.88);border-radius:22px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}
-.brand-left{display:flex;align-items:center;gap:14px}.logo{width:50px;height:50px;border-radius:17px;background:linear-gradient(145deg,#35d6d3,#087e91);display:grid;place-items:center;color:white;font-size:20px;font-weight:800;box-shadow:0 12px 28px rgba(9,144,157,.22)}
-.brand-name{font:800 1.25rem Manrope,sans-serif;color:#103f49;letter-spacing:-.03em}.brand-sub{font-size:.72rem;color:#76959b;margin-top:3px}
-/* nav buttons */
-.nav{position:relative;z-index:20;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:14px 0 28px}
-.nav .stButton>button{height:50px!important;border-radius:15px!important;background:#fff!important;border:1px solid #cde4e6!important;color:#174650!important;font-weight:800!important;font-size:.82rem!important;box-shadow:0 8px 20px rgba(15,91,101,.07)!important;transition:all .18s ease!important}
-.nav .stButton>button:hover{background:#e6fbfb!important;border-color:#17abb4!important;color:#075d6c!important;transform:translateY(-2px)!important}
-.nav .stButton>button:focus,.nav .stButton>button:active{background:#d9f7f7!important;border-color:#0aa7b2!important;color:#075d6c!important;box-shadow:0 0 0 3px rgba(10,167,178,.14)!important}
-.nav .stButton>button p,.nav .stButton>button span{color:inherit!important}
-/* typography */
-.kicker{font:800 .68rem Manrope,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#0798a6;margin-bottom:12px}.title{font:800 clamp(2.4rem,5vw,5.2rem)/.98 Manrope,sans-serif;letter-spacing:-.06em;color:#103f49;margin:0 0 16px}.lead{font-size:1rem;line-height:1.75;color:#66848b;max-width:850px}.section{position:relative;z-index:2;padding:46px 0 20px}.section h2{font:800 clamp(2rem,3.5vw,3.5rem)/1.05 Manrope,sans-serif;letter-spacing:-.05em;color:#103f49;margin:0 0 12px}.section p{color:#66848b;line-height:1.7;margin:0;max-width:900px}
-/* cards */
-.card{position:relative;z-index:2;background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:26px}.card h3{font:800 1.3rem Manrope,sans-serif;color:#123f49;margin:0 0 9px}.card p{color:#66848b;line-height:1.7;margin:0}.mini-label{font:800 .66rem Manrope,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#78959b;margin-bottom:8px}.metric{position:relative;z-index:2;padding:23px 24px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}.metric .label{font:800 .65rem Manrope,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#78959b}.metric .value{font:800 2rem Manrope,sans-serif;color:#123f49;margin-top:9px}.metric .note{font-size:.76rem;color:#78959b;margin-top:4px}
-/* hero */
-.hero{position:relative;z-index:2;overflow:hidden;min-height:570px;border-radius:34px;padding:88px 76px;background:linear-gradient(135deg,#063d51 0%,#076b7c 48%,#18aeb1 100%);box-shadow:0 32px 90px rgba(6,86,100,.18)}
-.hero:before{content:"";position:absolute;inset:-25%;background:repeating-radial-gradient(ellipse at 20% 115%,transparent 0 55px,rgba(181,255,251,.13) 57px 59px,transparent 61px 105px);transform:rotate(-7deg);animation:waveLines 13s linear infinite}.hero:after{content:"";position:absolute;left:-5%;right:-5%;bottom:-130px;height:280px;background:rgba(142,244,237,.15);border-radius:50%;animation:heroWave 7s ease-in-out infinite alternate}.hero-content{position:relative;z-index:2;max-width:820px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(3.6rem,7vw,7.1rem)/.88 Manrope,sans-serif;letter-spacing:-.075em;color:#e4ffff;margin:0 0 22px}.hero p{font-size:1.08rem;line-height:1.8;color:#e0fbfb;max-width:760px}.hero-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.badge{padding:9px 13px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#efffff;font-size:.76rem;font-weight:700;backdrop-filter:blur(8px)}
+@keyframes bubbleRise{from{transform:translateY(80px);opacity:.04}50%{opacity:.2}to{transform:translateY(-100vh);opacity:.02}}
+/* Brand */
+.brand-bar{position:relative;z-index:10;display:flex;align-items:center;padding:16px 22px;border:1px solid rgba(205,232,233,.9);background:rgba(255,255,255,.76);border-radius:24px;box-shadow:var(--shadow);backdrop-filter:blur(22px)}
+.brand-left{display:flex;align-items:center;gap:14px}.logo{width:50px;height:50px;border-radius:17px;background:linear-gradient(145deg,#38d7d2,#087d90);display:grid;place-items:center;color:#fff;font-size:20px;font-weight:800;box-shadow:0 12px 28px rgba(9,144,157,.20)}
+.brand-name{font:800 1.25rem Manrope,sans-serif;color:#103f49;letter-spacing:-.03em}.brand-sub{font-size:.76rem;color:#73939a;margin-top:3px}
+/* All Streamlit buttons: visible glassmorphism, never black */
+.stButton>button,.stDownloadButton>button,.stFormSubmitButton>button{height:50px!important;border-radius:16px!important;background:rgba(255,255,255,.58)!important;border:1px solid rgba(135,192,198,.58)!important;color:#15515d!important;font-weight:800!important;font-size:.88rem!important;box-shadow:0 10px 26px rgba(15,91,101,.08),inset 0 1px 0 rgba(255,255,255,.9)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease!important}
+.stButton>button:hover,.stDownloadButton>button:hover,.stFormSubmitButton>button:hover{background:rgba(224,251,251,.88)!important;border-color:#13aeb8!important;color:#075d6c!important;transform:translateY(-2px)!important;box-shadow:0 14px 30px rgba(15,91,101,.12),inset 0 1px 0 rgba(255,255,255,1)!important}
+.stButton>button:focus,.stButton>button:active,.stDownloadButton>button:focus,.stFormSubmitButton>button:focus{background:rgba(221,249,249,.92)!important;border-color:#10aeb7!important;color:#075d6c!important;box-shadow:0 0 0 3px rgba(16,174,183,.14),0 12px 28px rgba(15,91,101,.10)!important}
+.stButton>button p,.stButton>button span,.stDownloadButton>button p,.stDownloadButton>button span,.stFormSubmitButton>button p,.stFormSubmitButton>button span{color:inherit!important}
+/* Navigation */
+.nav-spacer{height:2px}
+/* Typography */
+.kicker{font:800 .72rem Manrope,sans-serif;letter-spacing:.19em;text-transform:uppercase;color:#0798a6;margin-bottom:13px}
+.title{font:800 clamp(2.5rem,5vw,5.2rem)/.98 Manrope,sans-serif;letter-spacing:-.06em;color:#103f49;margin:0 0 16px}
+.lead{font-size:1.06rem;line-height:1.78;color:#62838b;max-width:1100px}
+.section{position:relative;z-index:2;padding:54px 0 22px}.section h2{font:800 clamp(2.15rem,3.5vw,3.65rem)/1.08 Manrope,sans-serif;letter-spacing:-.05em;color:#103f49;margin:0 0 15px}.section p{color:#66848b;line-height:1.78;margin:0;max-width:1120px;font-size:1.04rem}
+/* Cards */
+.card{position:relative;z-index:2;background:rgba(255,255,255,.68);border:1px solid rgba(211,235,236,.95);border-radius:25px;box-shadow:var(--shadow);padding:28px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.card h3{font:800 1.42rem Manrope,sans-serif;color:#123f49;margin:0 0 11px}.card p{color:#66848b;line-height:1.78;margin:0;font-size:1rem}.mini-label{font:800 .68rem Manrope,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#78959b;margin-bottom:9px}
+.metric{position:relative;z-index:2;padding:23px 24px;background:rgba(255,255,255,.68);border:1px solid rgba(211,235,236,.95);border-radius:21px;box-shadow:var(--shadow);backdrop-filter:blur(16px)}.metric .label{font:800 .70rem Manrope,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#78959b}.metric .value{font:800 2rem Manrope,sans-serif;color:#123f49;margin-top:9px}.metric .note{font-size:.84rem;color:#78959b;margin-top:5px}
+/* Hero */
+.hero{position:relative;z-index:2;overflow:hidden;min-height:535px;border-radius:34px;padding:80px 70px;background:linear-gradient(135deg,#063d51 0%,#076b7c 48%,#18aeb1 100%);box-shadow:0 32px 90px rgba(6,86,100,.18)}
+.hero:before{content:"";position:absolute;inset:-25%;background:repeating-radial-gradient(ellipse at 20% 115%,transparent 0 55px,rgba(181,255,251,.13) 57px 59px,transparent 61px 105px);transform:rotate(-7deg);animation:waveLines 13s linear infinite}.hero:after{content:"";position:absolute;left:-5%;right:-5%;bottom:-130px;height:280px;background:rgba(142,244,237,.15);border-radius:50%;animation:heroWave 7s ease-in-out infinite alternate}.hero-content{position:relative;z-index:2;max-width:900px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(3.2rem,6.5vw,6.5rem)/.9 Manrope,sans-serif;letter-spacing:-.075em;color:#e4ffff;margin:0 0 23px}.hero p{font-size:1.12rem;line-height:1.82;color:#e0fbfb;max-width:800px}.hero-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:25px}.badge{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.26);color:#efffff;font-size:.82rem;font-weight:700;backdrop-filter:blur(10px)}
 @keyframes waveLines{from{transform:translateX(-4%) rotate(-7deg)}to{transform:translateX(4%) rotate(-7deg)}}@keyframes heroWave{from{transform:translateX(-2%) rotate(-1deg)}to{transform:translateX(2%) rotate(1deg)}}
-/* educational image */
-.info-image{position:relative;z-index:2;background:#fff;padding:10px;border-radius:26px;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}.info-image img{width:100%;height:auto;max-height:560px;object-fit:cover;object-position:center;border-radius:18px;display:block}
-/* feature cards */
-.feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.feature{position:relative;z-index:2;padding:25px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);min-height:190px;transition:.2s}.feature:hover{transform:translateY(-4px);box-shadow:0 25px 65px rgba(16,91,102,.13)}.feature .icon{font-size:1.65rem;margin-bottom:15px}.feature h3{font:800 1.1rem Manrope;color:#123f49;margin:0 0 8px}.feature p{font-size:.86rem;line-height:1.65;color:#66848b;margin:0}
-/* map */
+/* Equal-height educational split */
+.bloom-grid{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1.18fr;gap:24px;align-items:stretch}.bloom-panel{height:100%;min-height:430px;background:rgba(255,255,255,.70);border:1px solid rgba(211,235,236,.95);border-radius:25px;box-shadow:var(--shadow);padding:30px;backdrop-filter:blur(16px)}.bloom-panel h3{font:800 1.5rem/1.2 Manrope;color:#123f49;margin:0 0 16px}.bloom-panel p{font-size:1rem;line-height:1.82;color:#66848b;margin:0}.bloom-panel .important{margin-top:22px;padding:16px 18px;background:#e5f9f9;border-left:4px solid #13aab2;border-radius:0 16px 16px 0;color:#3f6971;line-height:1.7}.bloom-visual{height:100%;min-height:430px;background:rgba(255,255,255,.70);border:1px solid rgba(211,235,236,.95);border-radius:25px;box-shadow:var(--shadow);padding:10px;backdrop-filter:blur(16px);display:flex;align-items:stretch}.bloom-visual img{display:block;width:100%;height:100%;min-height:408px;object-fit:cover;object-position:center;border-radius:18px}
+/* Feature cards */
+.feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:17px}.feature{position:relative;z-index:2;padding:26px;background:rgba(255,255,255,.70);border:1px solid rgba(211,235,236,.95);border-radius:22px;box-shadow:var(--shadow);min-height:200px;transition:.2s;backdrop-filter:blur(14px)}.feature:hover{transform:translateY(-4px);box-shadow:0 25px 65px rgba(16,91,102,.13)}.feature .icon{font-size:1.65rem;margin-bottom:15px}.feature h3{font:800 1.16rem Manrope;color:#123f49;margin:0 0 9px}.feature p{font-size:.96rem;line-height:1.7;color:#66848b;margin:0}
+/* Map */
 .map-card{position:relative;z-index:2;background:#06233a;border-radius:26px;padding:10px;border:1px solid rgba(37,188,201,.25);box-shadow:0 28px 75px rgba(5,42,60,.18)}
-.map-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;color:#e8ffff;font-size:.78rem;padding:12px 14px}.legend-gradient{width:180px;height:10px;border-radius:999px;background:linear-gradient(90deg,#09264a,#0b76a3,#19c8c6,#b7e76b,#ffe27c)}.risk-dot{width:12px;height:12px;border-radius:50%;background:#ff5364;border:2px solid white}
-/* forms */
-div[data-testid="stNumberInput"] input, div[data-testid="stSelectbox"] div{border-radius:13px!important}.stNumberInput label,.stSelectbox label{font-weight:800!important;color:#285761!important}.stNumberInput button{color:#075d6c!important}
-/* table */
-.table-wrap{position:relative;z-index:2;border-radius:20px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#fff}.table-wrap table{width:100%;border-collapse:collapse;font-size:.82rem}.table-wrap th{background:#103f49;color:#fff;text-align:left;padding:12px 14px}.table-wrap td{padding:11px 14px;border-top:1px solid #e3eeee;color:#315b63;background:#fff}.table-wrap tr:nth-child(even) td{background:#f7fcfc}
-/* method */
-.step{position:relative;z-index:2;display:grid;grid-template-columns:70px 1fr;gap:22px;align-items:start;padding:25px 0;border-bottom:1px solid var(--line)}.step-num{width:58px;height:58px;border-radius:18px;background:#dff8f8;color:#078c99;display:grid;place-items:center;font:800 1rem Manrope}.step h3{font:800 1.15rem Manrope;color:#123f49;margin:0 0 7px}.step p{color:#66848b;line-height:1.7;margin:0}
-/* downloads */
-.download-panel{position:relative;z-index:2;background:linear-gradient(135deg,#087f90,#18aeb1);border-radius:28px;padding:30px;box-shadow:0 25px 70px rgba(8,126,141,.18)}.download-panel h3{font:800 1.55rem Manrope;color:#fff;margin:0 0 7px}.download-panel p{color:#d9ffff;margin:0 0 18px}.download-panel .stDownloadButton button{background:#fff!important;color:#087381!important;border:0!important}.download-panel .stDownloadButton button p,.download-panel .stDownloadButton button span{color:#087381!important}
-.note{position:relative;z-index:2;padding:18px 20px;background:#e7fafa;border-left:4px solid #13aab2;border-radius:0 18px 18px 0;color:#4d7078;line-height:1.7}
-.footer{position:relative;z-index:2;margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:#78959b;font-size:.74rem}
-@media(max-width:1000px){.nav{grid-template-columns:repeat(4,1fr)}.feature-grid{grid-template-columns:repeat(2,1fr)}.hero{padding:60px 42px}.bloom-grid{grid-template-columns:1fr!important}.two-col{grid-template-columns:1fr!important}}
-@media(max-width:650px){.block-container{padding:12px 18px 60px!important}.nav{grid-template-columns:repeat(2,1fr)}.feature-grid{grid-template-columns:1fr}.hero{padding:50px 28px;min-height:500px}.hero h1{font-size:3.3rem}.brand-sub{display:none}}
+.map-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;color:#e8ffff;font-size:.82rem;padding:12px 14px}.legend-gradient{width:180px;height:10px;border-radius:999px;background:linear-gradient(90deg,#09264a,#0b76a3,#19c8c6,#b7e76b,#ffe27c)}.risk-dot{width:12px;height:12px;border-radius:50%;background:#ff5364;border:2px solid white}
+/* Inputs */
+div[data-testid="stNumberInput"] input,div[data-testid="stSelectbox"] div{border-radius:14px!important}.stNumberInput label,.stSelectbox label,.stToggle label{font-weight:800!important;color:#285761!important;font-size:.9rem!important}.stNumberInput button{color:#075d6c!important}
+/* Result grids */
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.result-grid div{padding:15px 16px;background:#effafa;border:1px solid #d9eeee;border-radius:15px}.result-grid span{display:block;font-size:.76rem;color:#78959b;margin-bottom:5px}.result-grid b{font-size:.98rem;color:#194b55}
+/* Tables */
+.table-wrap{position:relative;z-index:2;border-radius:20px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#fff}.table-wrap table{width:100%;border-collapse:collapse;font-size:.90rem}.table-wrap th{background:#0e5663;color:#fff;text-align:left;padding:14px 15px}.table-wrap td{padding:13px 15px;border-top:1px solid #e3eeee;color:#315b63;background:#fff}.table-wrap tr:nth-child(even) td{background:#f7fcfc}
+/* Method */
+.step{position:relative;z-index:2;display:grid;grid-template-columns:70px 1fr;gap:22px;align-items:start;padding:28px 0;border-bottom:1px solid var(--line)}.step-num{width:58px;height:58px;border-radius:18px;background:#dff8f8;color:#078c99;display:grid;place-items:center;font:800 1rem Manrope}.step h3{font:800 1.28rem Manrope;color:#123f49;margin:0 0 8px}.step p{color:#66848b;line-height:1.75;margin:0;font-size:1rem}
+/* Downloads */
+.download-panel{position:relative;z-index:2;background:linear-gradient(135deg,#087f90,#18aeb1);border-radius:28px;padding:30px;box-shadow:0 25px 70px rgba(8,126,141,.18)}.download-panel h3{font:800 1.55rem Manrope;color:#fff;margin:0 0 8px}.download-panel p{color:#d9ffff;margin:0 0 18px;font-size:1rem;line-height:1.7}.download-panel .stDownloadButton>button{background:rgba(255,255,255,.82)!important;color:#087381!important;border:1px solid rgba(255,255,255,.95)!important}.download-panel .stDownloadButton>button p,.download-panel .stDownloadButton>button span{color:#087381!important}
+.note{position:relative;z-index:2;padding:18px 20px;background:#e7fafa;border-left:4px solid #13aab2;border-radius:0 18px 18px 0;color:#4d7078;line-height:1.75;font-size:.96rem}.footer{position:relative;z-index:2;margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:#78959b;font-size:.78rem}
+@media(max-width:1000px){.feature-grid{grid-template-columns:repeat(2,1fr)}.hero{padding:60px 42px}.bloom-grid{grid-template-columns:1fr}.bloom-panel,.bloom-visual{min-height:auto}.bloom-visual img{min-height:0}.result-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.block-container{padding:12px 18px 60px!important}.hero{padding:48px 28px;min-height:470px}.hero h1{font-size:3.2rem}.brand-sub{display:none}.feature-grid{grid-template-columns:1fr}.section{padding-top:42px}.section h2{font-size:2.15rem}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -130,6 +138,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown('<div class="nav-spacer"></div>', unsafe_allow_html=True)
 nav_cols = st.columns(7, gap="small")
 for col, page in zip(nav_cols, PAGES):
     with col:
@@ -149,8 +158,13 @@ def section(kicker, title, copy):
 def status_text(row):
     return "Potential bloom risk" if bool(row["risk_flag"]) else "No potential bloom-risk flag"
 
-def safe(v, digits=5):
-    return "Unavailable" if pd.isna(v) else f"{float(v):.{digits}f}"
+def safe(v, digits=3):
+    if pd.isna(v):
+        return "Unavailable"
+    x = float(v)
+    if abs(x) < 0.0005:
+        return "0.0"
+    return f"{x:.{digits}f}"
 
 def probability_text(v):
     if pd.isna(v):
@@ -209,23 +223,28 @@ if st.session_state.page == "home":
     """, unsafe_allow_html=True)
 
     section("01 · Understand the signal", "What is an algal bloom?", "An algal bloom occurs when algae or phytoplankton become unusually concentrated in part of a water body. Some blooms are harmless, while some can have ecological or health effects. A chlorophyll-a signal can help identify where conditions deserve closer investigation, but it does not by itself prove a harmful bloom or identify toxins.")
-    c1,c2 = st.columns([.82,1.18], gap="large")
-    with c1:
-        st.markdown("""
-        <div class="card" style="height:100%">
-          <div class="mini-label">Why this matters</div>
-          <h3>Small organisms can create a large environmental signal.</h3>
-          <p>Phytoplankton use light and nutrients to grow. When many cells accumulate, ocean colour and chlorophyll-a can change. BloomDetect uses that observable signal to screen locations for potential bloom risk, then points people toward places worth investigating with additional evidence.</p>
-          <br><p><b>Important:</b> the dashboard is an early-warning support tool, not a species, toxin, or laboratory confirmation system.</p>
+    def image_data_uri(path):
+        if not path.exists():
+            return ""
+        mime = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+        encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
+        return f"data:{mime};base64,{encoded}"
+
+    infographic_uri = image_data_uri(INFOGRAPHIC_PATH)
+    if infographic_uri:
+        st.markdown(f"""
+        <div class="bloom-grid">
+          <div class="bloom-panel">
+            <div class="mini-label">Why this matters</div>
+            <h3>Small organisms can create a large environmental signal.</h3>
+            <p>Phytoplankton use light and nutrients to grow. When many cells accumulate, ocean colour and chlorophyll-a can change. BloomDetect uses that observable signal to screen locations for potential bloom risk, then points people toward places worth investigating with additional evidence.</p>
+            <div class="important"><b>Important:</b> the dashboard is an early-warning support tool, not a species, toxin, or laboratory confirmation system.</div>
+          </div>
+          <div class="bloom-visual"><img src="{infographic_uri}" alt="How an algal bloom can develop and how satellite observations provide a chlorophyll signal"></div>
         </div>
         """, unsafe_allow_html=True)
-    with c2:
-        if INFOGRAPHIC_PATH.exists():
-            st.markdown('<div class="info-image">', unsafe_allow_html=True)
-            st.image(str(INFOGRAPHIC_PATH), use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.warning("Bloom process illustration is missing from the app folder.")
+    else:
+        st.warning("Bloom process illustration is missing from the app folder.")
 
     section("02 · Know what the system can tell you", "Three rules keep the screening honest.", "The interface is designed around the difference between an observable satellite signal and a confirmed harmful event.")
     cards = [
@@ -236,15 +255,6 @@ if st.session_state.page == "home":
     cols=st.columns(3,gap="medium")
     for col,(n,h,p) in zip(cols,cards):
         with col: st.markdown(f'<div class="card"><div class="mini-label">{n}</div><h3>{h}</h3><p>{p}</p></div>',unsafe_allow_html=True)
-
-    section("03 · Read the signal visually", "From tiny cells to a satellite view.", "These small visuals explain the two scales the project connects: microscopic phytoplankton and the large-area satellite observation.")
-    v1,v2=st.columns(2,gap="large")
-    with v1:
-        if PHYTO_IMAGE_PATH.exists():
-            st.image(str(PHYTO_IMAGE_PATH), use_container_width=True)
-    with v2:
-        if SAT_IMAGE_PATH.exists():
-            st.image(str(SAT_IMAGE_PATH), use_container_width=True)
 
     section("04 · Who can use it", "One dashboard, different jobs.", "The same screening result can support different next steps depending on who is using it.")
     users=[
@@ -272,7 +282,7 @@ if st.session_state.page == "home":
 # MAP
 # -----------------------------
 elif st.session_state.page == "map":
-    section("01 · Spatial explorer", "See where the signal changes.", "The map shows the latest processed chlorophyll-a field. Red markers are model-screened potential bloom-risk locations. They are screening flags, not confirmed harmful blooms.")
+    section("01 · Spatial map", "See where the signal changes.", "The map shows the latest processed chlorophyll-a field. Red markers are model-screened potential bloom-risk locations. They are screening flags, not confirmed harmful blooms.")
     a,b,c=st.columns([1.5,1.2,.7],gap="medium")
     with a: view=st.selectbox("Geographic view",["Global Ocean","Indian Ocean","Arabian Sea","Bay of Bengal"])
     with b: show=st.toggle("Show potential-risk overlay",True)
@@ -286,13 +296,13 @@ elif st.session_state.page == "map":
 # CHECKER
 # -----------------------------
 elif st.session_state.page == "checker":
-    section("02 · Coordinate screening", "Is this location flagged?", "Enter a latitude and longitude. BloomDetect finds the nearest processed 0.25° grid cell and reports its latest screening result and supporting signals.")
+    section("02 · Coordinate screening", "Check a location.", "Enter a latitude and longitude. BloomDetect finds the nearest processed 0.25° grid cell and reports its latest screening result and supporting signals.")
     left,right=st.columns([.75,1.25],gap="large")
     with left:
         st.markdown('<div class="card">',unsafe_allow_html=True)
         lat=st.number_input("Latitude",min_value=-90.0,max_value=90.0,value=18.0,step=.25,format="%.2f")
         lon=st.number_input("Longitude",min_value=-180.0,max_value=180.0,value=78.0,step=.25,format="%.2f")
-        st.markdown('<p style="color:#66848b;font-size:.84rem">Tip: choose a point inside the Indian Ocean, Arabian Sea or Bay of Bengal to explore the current study area.</p></div>',unsafe_allow_html=True)
+        st.markdown('<p style="color:#66848b;font-size:.94rem;line-height:1.7">Tip: choose a point inside the Indian Ocean, Arabian Sea or Bay of Bengal to explore the current study area.</p></div>',unsafe_allow_html=True)
     row=checker_row(lat,lon)
     with right:
         risk_yes=bool(row["risk_flag"])
@@ -314,7 +324,7 @@ elif st.session_state.page == "checker":
 # COMPARE
 # -----------------------------
 elif st.session_state.page == "compare":
-    section("03 · Location comparison", "Compare two places side by side.", "Use this when you want to inspect whether two coordinates show different latest chlorophyll-a signals or screening results.")
+    section("03 · Compare locations", "Compare two places side by side.", "Use this when you want to inspect whether two coordinates show different latest chlorophyll-a signals or screening results.")
     c1,c2=st.columns(2,gap="large")
     with c1:
         st.markdown('<div class="card">',unsafe_allow_html=True); st.markdown('<h3>Location A</h3>',unsafe_allow_html=True)
@@ -332,7 +342,7 @@ elif st.session_state.page == "compare":
 # INSIGHTS
 # -----------------------------
 elif st.session_state.page == "insights":
-    section("04 · Latest-field insights", "What stands out in the current observation?", "These summaries answer practical questions about the latest processed field without repeating the dataset documentation.")
+    section("04 · Latest-field insights", "What stands out right now?", "These summaries answer practical questions about the latest processed field without repeating the dataset documentation.")
     normal_count=int((~latest.risk_flag).sum()); risk_count=int(latest.risk_flag.sum()); share=100*risk_count/len(latest) if len(latest) else 0
     cols=st.columns(4,gap="medium")
     for col,(l,v,n) in zip(cols,[("Observation cells",f"{len(latest):,}","latest field"),("Potential-risk cells",f"{risk_count:,}","model screening"),("Normal cells",f"{normal_count:,}","latest field"),("Risk share",f"{share:.2f}%","latest field")]):
@@ -361,7 +371,7 @@ elif st.session_state.page == "insights":
 # METHOD
 # -----------------------------
 elif st.session_state.page == "method":
-    section("05 · Transparent pipeline", "From satellite observation to screening support.", "The project turns an environmental observation into a reproducible sequence of cleaning, temporal context, machine learning and spatial inspection.")
+    section("05 · Project pipeline", "From satellite observation to screening support.", "The project turns an environmental observation into a reproducible sequence of cleaning, temporal context, machine learning and spatial inspection.")
     steps=[
         ("01","Observe","Use EOS-06 OCM-3 analysed chlorophyll-a observations on the global-ocean grid."),
         ("02","Clean","Remove invalid records and organize the observations into a consistent spatial-temporal table."),
@@ -378,7 +388,7 @@ elif st.session_state.page == "method":
 # DATA
 # -----------------------------
 elif st.session_state.page == "data":
-    section("06 · Dataset & outputs", "Everything about the dataset lives here.", "This page contains the source product, coverage, grid structure, processed fields, interpretation limits and downloads. The other pages intentionally avoid repeating this documentation.")
+    section("06 · Dataset & outputs", "Dataset, fields and useful downloads.", "This page contains the source product, coverage, grid structure, processed fields, interpretation limits and downloads. The other pages intentionally avoid repeating this documentation.")
     cols=st.columns(4,gap="medium")
     for col,(l,v,n) in zip(cols,[("Product","E06OCM_L4_AC","EOS-06 / OCM-3"),("Grid","0.25°","latitude × longitude"),("Latest cells",f"{len(latest):,}","processed observation"),("Latest date",latest_date.strftime("%d %b %Y"),"processed dataset")]):
         with col: metric(l,v,n)
