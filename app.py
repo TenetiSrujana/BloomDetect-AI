@@ -28,6 +28,7 @@ ALGAE_IMAGE = (
     "https://images.unsplash.com/photo-1717292742444-8a7c392da4dd"
     "?auto=format&fit=crop&fm=jpg&q=82&w=1100"
 )
+BLOOM_IMAGE = "https://www.nesdis.noaa.gov/s3dl?path=%2Fs3%2F2026-01%2FAlgae_Bloom_side-by-side-1-21-2026.jpg"
 
 # -----------------------------
 # DATA
@@ -365,24 +366,25 @@ section[data-testid="stSidebar"] {{display:none !important;}}
     min-height:48px !important;
     border-radius:15px !important;
     border:1px solid rgba(15,103,114,.13) !important;
-    background:rgba(255,255,255,.84) !important;
-    color:#315a62 !important;
+    background:linear-gradient(135deg,#123943,#0b6877) !important;
+    color:#ffffff !important;
     font-weight:700 !important;
     font-size:.84rem !important;
     box-shadow:0 5px 18px rgba(18,91,102,.05) !important;
     transition:transform .2s ease, background .2s ease, box-shadow .2s ease !important;
 }}
+.nav-btn button p, .nav-btn button span {{ color:#ffffff !important; }}
 .nav-btn button:hover {{
     transform:translateY(-2px) !important;
-    background:#e7fbfb !important;
-    color:#057e8b !important;
+    background:linear-gradient(135deg,#079eab,#16b9bc) !important;
+    color:#ffffff !important;
     box-shadow:0 12px 28px rgba(8,133,145,.12) !important;
 }}
 
 /* General */
 .section-heading {{position:relative;z-index:2;padding:68px 0 28px;}}
 .kicker {{font:800 .68rem Manrope,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#079ba9;margin-bottom:18px;}}
-.section-heading h2 {{font:800 clamp(2.5rem,5vw,5.4rem)/.98 Manrope,sans-serif;letter-spacing:-.055em;color:#123a43;margin:0 0 20px;max-width:1050px;}}
+.section-heading h2 {{font:800 clamp(2.25rem,4.2vw,4.6rem)/1.02 Manrope,sans-serif;letter-spacing:-.055em;color:#123a43;margin:0 0 20px;max-width:1050px;}}
 .section-heading p {{font:500 1.04rem/1.75 'DM Sans',sans-serif;color:#648189;max-width:850px;margin:0;}}
 
 .metric-card, .glass-card, .feature-card {{
@@ -407,7 +409,7 @@ section[data-testid="stSidebar"] {{display:none !important;}}
 /* Home */
 .hero {{
     position:relative; z-index:2;
-    min-height:690px;
+    min-height:620px;
     margin-top:26px;
     overflow:hidden;
     border-radius:38px;
@@ -438,12 +440,29 @@ section[data-testid="stSidebar"] {{display:none !important;}}
 .scroll-cue {{position:absolute;z-index:4;right:44px;bottom:34px;color:#dffefe;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;animation:cue 2s ease-in-out infinite;}}
 @keyframes cue {{0%,100%{{transform:translateY(0);opacity:.55}}50%{{transform:translateY(8px);opacity:1}}}}
 
+/* Compact educational section */
+.compact-heading {{position:relative;z-index:2;padding:58px 0 22px;}}
+.compact-heading .kicker {{margin-bottom:12px;}}
+.compact-heading h3 {{font:800 clamp(2rem,3.1vw,3.25rem)/1.05 Manrope,sans-serif;color:#123a43;letter-spacing:-.045em;margin:0 0 12px;}}
+.compact-heading p {{font:500 1rem/1.7 'DM Sans',sans-serif;color:#648189;max-width:900px;margin:0;}}
+.image-pair {{display:grid;grid-template-columns:1fr 1fr;gap:18px;position:relative;z-index:2;}}
+.image-card {{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:24px;padding:10px;box-shadow:var(--shadow);}}
+.image-card img {{width:100%;height:300px;object-fit:cover;border-radius:18px;display:block;}}
+.image-card .caption {{padding:12px 10px 7px;color:#6c858b;font-size:.8rem;}}
+
 /* Home educational cards */
 .algae-image {{width:100%;height:340px;object-fit:cover;border-radius:28px;border:1px solid rgba(9,103,115,.12);box-shadow:var(--shadow);}}
 .process {{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}}
 .process-item {{background:rgba(255,255,255,.66);border:1px solid var(--line);border-radius:22px;padding:23px;box-shadow:0 16px 50px rgba(19,93,104,.08);}}
 .process-item strong {{display:block;font:800 1.1rem Manrope;color:#123b43;margin-bottom:8px;}}
 .process-item span {{font-size:.9rem;color:#708a90;line-height:1.6;}}
+
+/* Data dictionary */
+.data-table-wrap {{position:relative;z-index:2;overflow:hidden;border-radius:20px;border:1px solid rgba(13,107,117,.12);box-shadow:var(--shadow);background:#ffffff;}}
+.data-table {{width:100%;border-collapse:collapse;font-size:.82rem;color:#173e46;}}
+.data-table th {{text-align:left;padding:13px 16px;background:#123943;color:#ffffff;font-weight:800;}}
+.data-table td {{padding:11px 16px;border-top:1px solid #e6f0f0;color:#315a62;background:#ffffff;}}
+.data-table tr:nth-child(even) td {{background:#f7fcfc;}}
 
 /* Map / charts */
 .control-card {{padding:24px;border-radius:25px;background:rgba(255,255,255,.70);border:1px solid var(--line);box-shadow:var(--shadow);}}
@@ -454,12 +473,40 @@ section[data-testid="stSidebar"] {{display:none !important;}}
 .quote {{position:relative;z-index:2;margin:35px 0;padding:25px 30px;border-left:4px solid #1ab0b6;background:rgba(222,250,250,.65);border-radius:0 20px 20px 0;color:#42666d;line-height:1.7;}}
 .footer {{position:relative;z-index:2;border-top:1px solid var(--line);padding:25px 0;color:#78939a;font-size:.76rem;margin-top:70px;}}
 
+/* Location result */
+.location-result {{padding:32px;}}
+.location-result h3 {{font:800 2.15rem/1.05 Manrope;color:#143b43;margin:0 0 25px;letter-spacing:-.04em;}}
+.result-grid {{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px;}}
+.result-grid span {{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.14em;font-weight:800;color:#78939a;margin-bottom:6px;}}
+.result-grid b {{font-size:1rem;color:#214a52;}}
+.result-grid .risk-result {{color:#d84e5e;}}
+.result-grid .normal-result {{color:#21858c;}}
+
+/* Readable buttons */
+.stButton button p, .stButton button span, .stDownloadButton button p, .stDownloadButton button span {{color:#ffffff !important;}}
+.stDownloadButton button {{background:linear-gradient(135deg,#0b8292,#15aeb2)!important;color:#ffffff!important;border:0!important;}}
+.download-box + div .stDownloadButton button {{background:linear-gradient(135deg,#075f70,#0c96a2)!important;color:#ffffff!important;}}
+
 /* Streamlit controls */
 div[data-baseweb="select"] > div {{border-radius:13px!important;background:rgba(255,255,255,.88)!important;border-color:rgba(13,107,117,.13)!important;}}
 .stNumberInput input {{border-radius:13px!important;background:rgba(255,255,255,.88)!important;}}
 .stButton button {{border-radius:14px!important;min-height:48px!important;font-weight:700!important;}}
 .stDownloadButton button {{border-radius:15px!important;min-height:52px!important;font-weight:800!important;}}
-[data-testid="stDataFrame"] {{border-radius:18px;overflow:hidden;}}
+[data-testid="stDataFrame"] {{border-radius:18px;overflow:hidden;background:#ffffff!important;}}
+[data-testid="stDataFrame"] * {{color:#173e46 !important;}}
+.stNumberInput label, .stSelectbox label {{color:#315f68 !important;font-weight:700 !important;}}
+.stNumberInput input {{color:#173e46 !important;font-weight:700 !important;}}
+.stNumberInput button {{color:#173e46 !important;background:#ffffff !important;}}
+
+/* Visible water motion across the whole app */
+.water-motion {{position:fixed;left:0;right:0;bottom:0;height:115px;z-index:1;pointer-events:none;overflow:hidden;opacity:.75;}}
+.water-motion .wave {{position:absolute;left:-10%;width:120%;height:70px;border-radius:50% 50% 0 0;filter:blur(.2px);}}
+.water-motion .wave.one {{bottom:-38px;background:rgba(24,181,192,.17);animation:waveMove1 7s ease-in-out infinite alternate;}}
+.water-motion .wave.two {{bottom:-52px;background:rgba(70,211,219,.15);animation:waveMove2 9s ease-in-out infinite alternate-reverse;}}
+.water-motion .wave.three {{bottom:-67px;background:rgba(7,126,144,.10);animation:waveMove3 11s ease-in-out infinite alternate;}}
+@keyframes waveMove1 {{from{{transform:translateX(-3%) rotate(-1deg) scaleX(1.02)}}to{{transform:translateX(3%) rotate(1deg) scaleX(1.10)}}}}
+@keyframes waveMove2 {{from{{transform:translateX(4%) rotate(1deg) scaleX(1.05)}}to{{transform:translateX(-4%) rotate(-1deg) scaleX(1.12)}}}}
+@keyframes waveMove3 {{from{{transform:translateX(-2%) scaleX(1.04)}}to{{transform:translateX(2%) scaleX(1.13)}}}}
 
 @media(max-width:900px) {{
     .block-container {{padding:0 18px 60px!important;}}
@@ -472,6 +519,9 @@ div[data-baseweb="select"] > div {{border-radius:13px!important;background:rgba(
 """,
     unsafe_allow_html=True,
 )
+
+# A visible animated water layer behind the interface.
+st.markdown("""<div class="water-motion"><div class="wave one"></div><div class="wave two"></div><div class="wave three"></div></div>""", unsafe_allow_html=True)
 
 # -----------------------------
 # NAV BAR
@@ -531,35 +581,51 @@ if page == "home":
             """,
             unsafe_allow_html=True,
         )
-    with c2:
-        st.image(ALGAE_IMAGE, caption="Underwater algae / seaweed environment", use_container_width=True)
-
-    section_title(
-        "How a bloom can develop",
-        "Sunlight + nutrients + water movement → growth.",
-        "The exact causes vary by ecosystem. NOAA notes that sunlight, nutrients, water movement and other environmental conditions can contribute to algal growth and harmful blooms.",
+    st.markdown(
+        """
+        <div class="compact-heading">
+            <div class="kicker">How blooms can build up</div>
+            <h3>Conditions → growth → accumulation → satellite signal.</h3>
+            <p>Sunlight and nutrients support phytoplankton growth, while water movement can influence where cells accumulate. Chlorophyll-a can then provide a satellite-observed signal of biomass.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+    st.markdown(
+        f"""
+        <div class="image-pair">
+            <div class="image-card"><img src="{ALGAE_IMAGE}"/><div class="caption">Underwater marine algae / seaweed environment</div></div>
+            <div class="image-card"><img src="{BLOOM_IMAGE}"/><div class="caption">NOAA example showing microscopic cells alongside a visible surface bloom</div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         """
         <div class="process">
-            <div class="process-item"><strong>01 · Growth conditions</strong><span>Light and nutrients support phytoplankton growth.</span></div>
-            <div class="process-item"><strong>02 · Accumulation</strong><span>Water movement can concentrate cells in particular areas.</span></div>
-            <div class="process-item"><strong>03 · Visible signal</strong><span>Higher phytoplankton biomass can contribute to changes in chlorophyll-a observed from space.</span></div>
+            <div class="process-item"><strong>01 · Conditions</strong><span>Sunlight and nutrients create conditions that can support phytoplankton growth.</span></div>
+            <div class="process-item"><strong>02 · Accumulation</strong><span>Water movement can gather cells in particular areas, increasing local concentration.</span></div>
+            <div class="process-item"><strong>03 · Satellite signal</strong><span>Changes in chlorophyll-a can reveal where biomass patterns deserve a closer look.</span></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     section_title(
-        "What BloomDetect adds",
-        "From a huge ocean field to places worth investigating.",
-        "The current prototype screens the available observation grid and highlights model-derived potential-risk locations for further investigation.",
+        "Explore the signal",
+        "See the map. Inspect a location. Understand the pattern.",
+        "Use Ocean Map for the spatial picture, Location for one grid cell, and Insights for compact summaries of the latest field.",
     )
-    stats = st.columns(4, gap="medium")
-    with stats[0]: metric_card("Observation cells", f"{len(latest):,}", "latest available grid")
-    with stats[1]: metric_card("Potential-risk cells", f"{len(risk):,}", "screening output")
-    with stats[2]: metric_card("Normal cells", f"{len(normal):,}", "remaining latest grid")
-    with stats[3]: metric_card("Risk share", f"{len(risk)/len(latest)*100:.2f}%", "latest field")
+    explore = st.columns(3, gap="medium")
+    explore_cards = [
+        ("🌊", "Ocean Map", "See the latest observation grid and the potential-risk overlay."),
+        ("📍", "Location", "Enter coordinates and inspect the nearest processed observation."),
+        ("📊", "Insights", "Review only the summaries that are calculated from the current field."),
+    ]
+    for col, (icon, title, copy) in zip(explore, explore_cards):
+        with col:
+            st.markdown(f'<div class="feature-card"><div class="feature-icon">{icon}</div><h3>{title}</h3><p>{copy}</p></div>', unsafe_allow_html=True)
 
     section_title(
         "Who is this for?",
@@ -621,39 +687,47 @@ elif page == "map":
 elif page == "location":
     section_title(
         "02 · Location explorer",
-        "Look closer at one place.",
-        "Enter coordinates to find the nearest available observation in the current processed dataset.",
+        "Inspect one grid cell.",
+        "Change the coordinates and the nearest processed observation updates immediately. Start from a flagged location to see a non-zero example, then try your own coordinates.",
     )
+
+    default_lat = float(risk.iloc[0]["latitude"]) if len(risk) else 15.0
+    default_lon = float(risk.iloc[0]["plot_lon"]) if len(risk) else 75.0
 
     left, right = st.columns([.85, 1.35], gap="large")
     with left:
-        lat_in = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=15.0, step=0.25, format="%.2f")
-        lon_in = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=75.0, step=0.25, format="%.2f")
-        inspect = st.button("Inspect nearest observation →", use_container_width=True, key="inspect_location")
+        st.markdown('<div class="control-card"><div class="kicker">Choose a point</div><p style="color:#67828a;margin-top:-8px">The app finds the nearest available 0.25° grid observation.</p></div>', unsafe_allow_html=True)
+        lat_in = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=default_lat, step=0.25, format="%.2f", key="location_lat")
+        lon_in = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=default_lon, step=0.25, format="%.2f", key="location_lon")
+        st.caption("Tip: try coordinates inside the Indian Ocean, Arabian Sea or Bay of Bengal.")
 
-    # Show the default nearest point immediately, then update when inspected.
     lon_norm = ((lon_in + 180) % 360) - 180
     dist = np.sqrt((latest["latitude"] - lat_in) ** 2 + (latest["plot_lon"] - lon_norm) ** 2)
     row = latest.loc[dist.idxmin()]
 
     with right:
-        st.markdown(
-            f"""
-            <div class="glass-card" style="padding:32px">
-                <div class="kicker">Nearest grid cell</div>
-                <h3 style="font:800 2.1rem Manrope;color:#143b43;margin:0 0 16px">{row['latitude']:.2f}° · {row['plot_lon']:.2f}°</h3>
-                <p style="color:#67828a">Observation date: <b>{row['date'].strftime('%d %B %Y')}</b></p>
-                <p style="color:#67828a">Chlorophyll-a: <b>{row['chla']:.5f}</b></p>
-                <p style="color:#67828a">Screening result: <b>{row['risk_label']}</b></p>
+        risk_text = str(row["risk_label"])
+        risk_class = "risk-result" if str(row["risk_label"]).lower() == "potential bloom risk" else "normal-result"
+        prob = row.get("risk_probability", np.nan)
+        prob_text = "Not available" if pd.isna(prob) else f"{float(prob)*100:.1f}%" if float(prob) <= 1 else f"{float(prob):.1f}%"
+        html = f"""
+            <div class="glass-card location-result">
+                <div class="kicker">Nearest available observation</div>
+                <h3>{row['latitude']:.2f}° · {row['plot_lon']:.2f}°</h3>
+                <div class="result-grid">
+                    <div><span>Observation date</span><b>{row['date'].strftime('%d %B %Y')}</b></div>
+                    <div><span>Chlorophyll-a</span><b>{row['chla']:.5f}</b></div>
+                    <div><span>Screening result</span><b class="{risk_class}">{risk_text}</b></div>
+                    <div><span>Model probability</span><b>{prob_text}</b></div>
+                </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        """
+        st.markdown(html, unsafe_allow_html=True)
 
     section_title(
-        "Available signals",
-        "What is actually present for this grid cell?",
-        "These values come directly from the processed prediction table. Missing fields are shown as unavailable rather than invented.",
+        "Signals at this point",
+        "What changes when you move the location?",
+        "These values are read from the selected row in the processed prediction table. If a field is genuinely missing, the dashboard says so instead of displaying a made-up value.",
     )
     available = [
         ("Previous chlorophyll-a", "previous_chla"),
@@ -667,11 +741,14 @@ elif page == "location":
     for i, (label, col) in enumerate(available):
         with cards[i % 3]:
             value = row[col] if col in row.index and pd.notna(row[col]) else None
-            text = "Not available" if value is None else f"{float(value):.5f}"
+            text_value = "Not available" if value is None else f"{float(value):.5f}"
+            note = "from selected grid cell" if value is not None else "not present for this cell"
             st.markdown(
-                f'<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value" style="font-size:1.45rem">{text}</div><div class="metric-note">processed dataset</div></div>',
+                f'<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value" style="font-size:1.45rem">{text_value}</div><div class="metric-note">{note}</div></div>',
                 unsafe_allow_html=True,
             )
+
+    st.markdown('<div class="quote">This page is useful because the selected coordinates control the row being inspected. It is a lookup tool for the processed dataset, not a live sensor reading.</div>', unsafe_allow_html=True)
 
 # ============================================================
 # INSIGHTS
@@ -748,7 +825,7 @@ elif page == "insights":
 elif page == "method":
     section_title(
         "04 · How it works",
-        "From satellite signal to investigation support.",
+        "How the screening pipeline works.",
         "A transparent six-step pipeline, without pretending the model knows more than the data can tell us.",
     )
 
@@ -774,8 +851,8 @@ elif page == "method":
 elif page == "data":
     section_title(
         "05 · Data",
-        "The dataset behind the experience.",
-        "This page is deliberately different from Home: it is a compact data sheet and download area, not another explanation of algae or the project.",
+        "The processed data behind the dashboard.",
+        "A compact reference for the fields, source product, grid size and downloadable outputs.",
     )
 
     cols = st.columns(4, gap="medium")
@@ -785,20 +862,31 @@ elif page == "data":
     with cols[3]: metric_card("Latest date", latest_date.strftime("%d %b %Y"), "processed data")
 
     st.markdown('<div class="section-heading"><div class="kicker">Data dictionary</div><h2>What is actually in the file?</h2><p>The public dashboard uses the latest processed prediction table.</p></div>', unsafe_allow_html=True)
-    dictionary = pd.DataFrame([
-        ["latitude", "Grid latitude", "degrees"],
-        ["longitude", "Grid longitude", "degrees"],
-        ["date", "Observation date", "date"],
-        ["chla", "Satellite-derived chlorophyll-a", "product value"],
-        ["risk_label", "Model screening result", "Normal / Potential Bloom Risk"],
-        ["previous_chla", "Previous observation", "derived feature when present"],
-        ["historical_baseline", "Historical baseline", "derived feature when present"],
-        ["recent_mean", "Recent mean", "derived feature when present"],
-        ["recent_max", "Recent maximum", "derived feature when present"],
-        ["chla_anomaly", "Chlorophyll anomaly", "derived feature when present"],
-        ["chla_change", "Change from previous observation", "derived feature when present"],
-    ], columns=["Field", "Meaning", "Type"])
-    st.dataframe(dictionary, width="stretch", hide_index=True)
+    rows = [
+        ("latitude", "Grid latitude", "degrees"),
+        ("longitude", "Grid longitude", "degrees"),
+        ("date", "Observation date", "date"),
+        ("chla", "Satellite-derived chlorophyll-a", "product value"),
+        ("risk_label", "Model screening result", "Normal / Potential Bloom Risk"),
+        ("previous_chla", "Previous observation", "derived feature when present"),
+        ("historical_baseline", "Historical baseline", "derived feature when present"),
+        ("recent_mean", "Recent mean", "derived feature when present"),
+        ("recent_max", "Recent maximum", "derived feature when present"),
+        ("chla_anomaly", "Chlorophyll anomaly", "derived feature when present"),
+        ("chla_change", "Change from previous observation", "derived feature when present"),
+    ]
+    table_rows = "".join(f"<tr><td>{a}</td><td>{b}</td><td>{c}</td></tr>" for a,b,c in rows)
+    st.markdown(
+        f"""
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Field</th><th>Meaning</th><th>Type</th></tr></thead>
+            <tbody>{table_rows}</tbody>
+          </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="download-box"><h3>Download the data.</h3><p>Choose the complete latest observation table or the smaller screening list.</p></div>', unsafe_allow_html=True)
