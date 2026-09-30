@@ -73,7 +73,7 @@ st.markdown(r"""
 html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif!important}
 .stApp{background:linear-gradient(180deg,#fbffff 0%,#eefbfb 46%,#fbffff 100%)!important;overflow-x:hidden}
 [data-testid="stHeader"],[data-testid="stToolbar"],#MainMenu,footer,[data-testid="stSidebar"]{display:none!important}
-.block-container{max-width:1420px!important;padding:18px 44px 90px!important}
+.block-container{max-width:1320px!important;padding:22px 38px 80px!important}
 /* Whole-site ocean motion */
 .stApp:before{content:"";position:fixed;left:-10%;right:-10%;bottom:-110px;height:260px;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 15% 55%,rgba(42,205,211,.20) 0 18%,transparent 19%),radial-gradient(ellipse at 55% 45%,rgba(71,224,222,.15) 0 22%,transparent 23%),radial-gradient(ellipse at 90% 60%,rgba(15,171,191,.15) 0 20%,transparent 21%);filter:blur(2px);animation:waterMove 10s ease-in-out infinite alternate}
 .stApp:after{content:"◦     ·        ◦        ·        ◦        ·        ◦";position:fixed;left:5%;bottom:-80px;z-index:0;pointer-events:none;color:rgba(8,153,169,.14);font-size:25px;letter-spacing:58px;animation:bubbleRise 18s linear infinite}
@@ -84,8 +84,8 @@ html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:
 .brand-left{display:flex;align-items:center;gap:14px}.logo{width:50px;height:50px;border-radius:17px;background:linear-gradient(145deg,#38d7d2,#087d90);display:grid;place-items:center;color:#fff;font-size:20px;font-weight:800;box-shadow:0 12px 28px rgba(9,144,157,.20)}
 .brand-name{font:800 1.25rem Manrope,sans-serif;color:#103f49;letter-spacing:-.03em}.brand-sub{font-size:.76rem;color:#73939a;margin-top:3px}
 /* All Streamlit buttons: visible glassmorphism, never black */
-.stButton>button,.stDownloadButton>button,.stFormSubmitButton>button{height:50px!important;border-radius:16px!important;background:rgba(255,255,255,.58)!important;border:1px solid rgba(135,192,198,.58)!important;color:#15515d!important;font-weight:800!important;font-size:.88rem!important;box-shadow:0 10px 26px rgba(15,91,101,.08),inset 0 1px 0 rgba(255,255,255,.9)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease!important}
-.stButton>button:hover,.stDownloadButton>button:hover,.stFormSubmitButton>button:hover{background:rgba(224,251,251,.88)!important;border-color:#13aeb8!important;color:#075d6c!important;transform:translateY(-2px)!important;box-shadow:0 14px 30px rgba(15,91,101,.12),inset 0 1px 0 rgba(255,255,255,1)!important}
+.stButton>button,.stDownloadButton>button,.stFormSubmitButton>button{height:48px!important;border-radius:15px!important;background:rgba(255,255,255,.88)!important;border:1.5px solid rgba(62,167,176,.42)!important;color:#164f5b!important;font-weight:800!important;font-size:.92rem!important;box-shadow:0 8px 22px rgba(15,91,101,.09),inset 0 1px 0 rgba(255,255,255,1)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease!important}
+.stButton>button:hover,.stDownloadButton>button:hover,.stFormSubmitButton>button:hover{background:rgba(224,251,251,.96)!important;border-color:#12aeb8!important;color:#075d6c!important;transform:translateY(-2px)!important;box-shadow:0 14px 30px rgba(15,91,101,.13),0 0 0 3px rgba(18,174,184,.08),inset 0 1px 0 rgba(255,255,255,1)!important}
 .stButton>button:focus,.stButton>button:active,.stDownloadButton>button:focus,.stFormSubmitButton>button:focus{background:rgba(221,249,249,.92)!important;border-color:#10aeb7!important;color:#075d6c!important;box-shadow:0 0 0 3px rgba(16,174,183,.14),0 12px 28px rgba(15,91,101,.10)!important}
 .stButton>button p,.stButton>button span,.stDownloadButton>button p,.stDownloadButton>button span,.stFormSubmitButton>button p,.stFormSubmitButton>button span{color:inherit!important}
 /* Navigation */
@@ -94,11 +94,11 @@ html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:
 .kicker{font:800 .72rem Manrope,sans-serif;letter-spacing:.19em;text-transform:uppercase;color:#0798a6;margin-bottom:13px}
 .title{font:800 clamp(2.5rem,5vw,5.2rem)/.98 Manrope,sans-serif;letter-spacing:-.06em;color:#103f49;margin:0 0 16px}
 .lead{font-size:1.06rem;line-height:1.78;color:#62838b;max-width:1100px}
-.section{position:relative;z-index:2;padding:54px 0 22px}.section h2{font:800 clamp(2.15rem,3.5vw,3.65rem)/1.08 Manrope,sans-serif;letter-spacing:-.05em;color:#103f49;margin:0 0 15px}.section p{color:#66848b;line-height:1.78;margin:0;max-width:1120px;font-size:1.04rem}
+.section{position:relative;z-index:2;padding:46px 0 24px}.section h2{font:800 clamp(2.15rem,3.35vw,3.45rem)/1.08 Manrope,sans-serif;letter-spacing:-.05em;color:#103f49;margin:0 0 16px}.section p{color:#5f7f87;line-height:1.85;margin:0;max-width:1120px;font-size:1.08rem}
 /* Cards */
 .card{position:relative;z-index:2;background:rgba(255,255,255,.68);border:1px solid rgba(211,235,236,.95);border-radius:25px;box-shadow:var(--shadow);padding:28px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .card h3{font:800 1.42rem Manrope,sans-serif;color:#123f49;margin:0 0 11px}.card p{color:#66848b;line-height:1.78;margin:0;font-size:1rem}.mini-label{font:800 .68rem Manrope,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#78959b;margin-bottom:9px}
-.metric{position:relative;z-index:2;padding:23px 24px;background:rgba(255,255,255,.68);border:1px solid rgba(211,235,236,.95);border-radius:21px;box-shadow:var(--shadow);backdrop-filter:blur(16px)}.metric .label{font:800 .70rem Manrope,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#78959b}.metric .value{font:800 2rem Manrope,sans-serif;color:#123f49;margin-top:9px}.metric .note{font-size:.84rem;color:#78959b;margin-top:5px}
+.metric{position:relative;z-index:2;min-height:142px;height:100%;box-sizing:border-box;padding:22px;background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(231,249,249,.82));border:1.5px solid rgba(78,169,179,.38);border-radius:22px;box-shadow:0 16px 38px rgba(15,91,101,.10),inset 0 1px 0 rgba(255,255,255,1);backdrop-filter:blur(18px);display:flex;flex-direction:column;justify-content:center}.metric .label{font:800 .68rem Manrope,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#6d8c93}.metric .value{font:800 1.65rem Manrope,sans-serif;color:#123f49;margin-top:8px;white-space:nowrap}.metric .note{font-size:.82rem;color:#78959b;margin-top:6px}
 /* Hero */
 .hero{position:relative;z-index:2;overflow:hidden;min-height:535px;border-radius:34px;padding:80px 70px;background:linear-gradient(135deg,#063d51 0%,#076b7c 48%,#18aeb1 100%);box-shadow:0 32px 90px rgba(6,86,100,.18)}
 .hero:before{content:"";position:absolute;inset:-25%;background:repeating-radial-gradient(ellipse at 20% 115%,transparent 0 55px,rgba(181,255,251,.13) 57px 59px,transparent 61px 105px);transform:rotate(-7deg);animation:waveLines 13s linear infinite}.hero:after{content:"";position:absolute;left:-5%;right:-5%;bottom:-130px;height:280px;background:rgba(142,244,237,.15);border-radius:50%;animation:heroWave 7s ease-in-out infinite alternate}.hero-content{position:relative;z-index:2;max-width:900px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(3.2rem,6.5vw,6.5rem)/.9 Manrope,sans-serif;letter-spacing:-.075em;color:#e4ffff;margin:0 0 23px}.hero p{font-size:1.12rem;line-height:1.82;color:#e0fbfb;max-width:800px}.hero-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:25px}.badge{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.26);color:#efffff;font-size:.82rem;font-weight:700;backdrop-filter:blur(10px)}
@@ -108,19 +108,48 @@ html,body,[data-testid="stAppViewContainer"]{background:#f2fcfc!important;color:
 /* Feature cards */
 .feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:17px}.feature{position:relative;z-index:2;padding:26px;background:rgba(255,255,255,.70);border:1px solid rgba(211,235,236,.95);border-radius:22px;box-shadow:var(--shadow);min-height:200px;transition:.2s;backdrop-filter:blur(14px)}.feature:hover{transform:translateY(-4px);box-shadow:0 25px 65px rgba(16,91,102,.13)}.feature .icon{font-size:1.65rem;margin-bottom:15px}.feature h3{font:800 1.16rem Manrope;color:#123f49;margin:0 0 9px}.feature p{font-size:.96rem;line-height:1.7;color:#66848b;margin:0}
 /* Map */
-.map-card{position:relative;z-index:2;background:#06233a;border-radius:26px;padding:10px;border:1px solid rgba(37,188,201,.25);box-shadow:0 28px 75px rgba(5,42,60,.18)}
-.map-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;color:#e8ffff;font-size:.82rem;padding:12px 14px}.legend-gradient{width:180px;height:10px;border-radius:999px;background:linear-gradient(90deg,#09264a,#0b76a3,#19c8c6,#b7e76b,#ffe27c)}.risk-dot{width:12px;height:12px;border-radius:50%;background:#ff5364;border:2px solid white}
+.map-card{position:relative;z-index:2;background:rgba(255,255,255,.78);border-radius:25px;padding:8px;border:1.5px solid rgba(113,190,197,.38);box-shadow:0 18px 48px rgba(15,91,101,.10);backdrop-filter:blur(16px);overflow:hidden}
+.map-legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap;color:#4f747b;font-size:.86rem;padding:13px 14px}.legend-gradient{width:180px;height:10px;border-radius:999px;background:linear-gradient(90deg,#09264a,#0b76a3,#19c8c6,#b7e76b,#ffe27c)}.risk-dot{width:12px;height:12px;border-radius:50%;background:#ff5364;border:2px solid white}
 /* Inputs */
-div[data-testid="stNumberInput"] input,div[data-testid="stSelectbox"] div{border-radius:14px!important}.stNumberInput label,.stSelectbox label,.stToggle label{font-weight:800!important;color:#285761!important;font-size:.9rem!important}.stNumberInput button{color:#075d6c!important}
+div[data-testid="stNumberInput"]{position:relative!important;z-index:4!important}
+div[data-testid="stNumberInput"] input,div[data-testid="stNumberInput"] input[type="number"]{border-radius:13px!important;background:rgba(255,255,255,.94)!important;color:#174b56!important;border:1.5px solid rgba(75,169,179,.46)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,1),0 7px 18px rgba(15,91,101,.06)!important;font-size:1rem!important;font-weight:700!important;height:46px!important}
+div[data-testid="stNumberInput"] button{width:30px!important;height:30px!important;margin-right:5px!important;border-radius:9px!important;background:rgba(222,249,249,.98)!important;color:#087f8d!important;border:1px solid rgba(88,181,188,.58)!important;box-shadow:0 3px 8px rgba(15,91,101,.08)!important;opacity:1!important}
+div[data-testid="stNumberInput"] button:hover{background:#c9f3f2!important;color:#075d6c!important}
+div[data-testid="stSelectbox"] [data-baseweb="select"]>div{border-radius:14px!important;background:rgba(255,255,255,.72)!important;border:1px solid rgba(135,192,198,.58)!important;color:#174b56!important}
+.stNumberInput label,.stSelectbox label,.stToggle label{font-weight:800!important;color:#285761!important;font-size:.9rem!important}
+div[data-testid="stNumberInput"] [data-baseweb="input"],
+div[data-testid="stNumberInput"] [data-baseweb="input"]>div{
+    background:rgba(255,255,255,.94)!important;
+    border:1.5px solid rgba(75,169,179,.46)!important;
+    border-radius:13px!important;
+    box-shadow:0 7px 18px rgba(15,91,101,.06)!important;
+}
+div[data-testid="stNumberInput"] [data-baseweb="input"] input{
+    background:transparent!important;
+    color:#174b56!important;
+    -webkit-text-fill-color:#174b56!important;
+}
+
+/* Coordinate checker */
+.checker-input-card{position:relative;z-index:3;background:rgba(255,255,255,.84);border:1.5px solid rgba(113,190,197,.40);border-radius:25px;box-shadow:0 16px 42px rgba(15,91,101,.09);padding:25px 27px 22px;backdrop-filter:blur(18px)}
+.entered-line{margin-top:10px;padding:13px 15px;border-radius:14px;background:#eafafa;border:1px solid #d4eeee;color:#53777e;font-size:.92rem;line-height:1.6}
+.nearest-line{margin-top:8px;color:#66848b;font-size:.92rem;line-height:1.6}
 /* Result grids */
-.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.result-grid div{padding:15px 16px;background:#effafa;border:1px solid #d9eeee;border-radius:15px}.result-grid span{display:block;font-size:.76rem;color:#78959b;margin-bottom:5px}.result-grid b{font-size:.98rem;color:#194b55}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.result-grid div{padding:15px 16px;background:linear-gradient(145deg,#f5fdfd,#e9f8f8);border:1px solid #cbe8e9;border-radius:15px}.result-grid span{display:block;font-size:.76rem;color:#78959b;margin-bottom:5px}.result-grid b{font-size:.98rem;color:#194b55}
 /* Tables */
 .table-wrap{position:relative;z-index:2;border-radius:20px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#fff}.table-wrap table{width:100%;border-collapse:collapse;font-size:.90rem}.table-wrap th{background:#0e5663;color:#fff;text-align:left;padding:14px 15px}.table-wrap td{padding:13px 15px;border-top:1px solid #e3eeee;color:#315b63;background:#fff}.table-wrap tr:nth-child(even) td{background:#f7fcfc}
 /* Method */
-.step{position:relative;z-index:2;display:grid;grid-template-columns:70px 1fr;gap:22px;align-items:start;padding:28px 0;border-bottom:1px solid var(--line)}.step-num{width:58px;height:58px;border-radius:18px;background:#dff8f8;color:#078c99;display:grid;place-items:center;font:800 1rem Manrope}.step h3{font:800 1.28rem Manrope;color:#123f49;margin:0 0 8px}.step p{color:#66848b;line-height:1.75;margin:0;font-size:1rem}
+.step{position:relative;z-index:2;display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:start;padding:18px 0;border-bottom:1px solid var(--line)}.step-num{width:58px;height:58px;border-radius:18px;background:#dff8f8;color:#078c99;display:grid;place-items:center;font:800 1rem Manrope}.step h3{font:800 1.22rem Manrope;color:#123f49;margin:0 0 6px}.step p{color:#66848b;line-height:1.65;margin:0;font-size:.98rem}
 /* Downloads */
-.download-panel{position:relative;z-index:2;background:linear-gradient(135deg,#087f90,#18aeb1);border-radius:28px;padding:30px;box-shadow:0 25px 70px rgba(8,126,141,.18)}.download-panel h3{font:800 1.55rem Manrope;color:#fff;margin:0 0 8px}.download-panel p{color:#d9ffff;margin:0 0 18px;font-size:1rem;line-height:1.7}.download-panel .stDownloadButton>button{background:rgba(255,255,255,.82)!important;color:#087381!important;border:1px solid rgba(255,255,255,.95)!important}.download-panel .stDownloadButton>button p,.download-panel .stDownloadButton>button span{color:#087381!important}
+.download-panel{position:relative;z-index:2;min-height:150px;box-sizing:border-box;background:linear-gradient(135deg,#087f90,#18aeb1);border-radius:26px;padding:28px;box-shadow:0 25px 70px rgba(8,126,141,.18)}.download-panel h3{font:800 1.55rem Manrope;color:#fff;margin:0 0 8px}.download-panel p{color:#d9ffff;margin:0 0 18px;font-size:1rem;line-height:1.7}.download-panel .stDownloadButton>button{background:rgba(255,255,255,.82)!important;color:#087381!important;border:1px solid rgba(255,255,255,.95)!important}.download-panel .stDownloadButton>button p,.download-panel .stDownloadButton>button span{color:#087381!important}
 .note{position:relative;z-index:2;padding:18px 20px;background:#e7fafa;border-left:4px solid #13aab2;border-radius:0 18px 18px 0;color:#4d7078;line-height:1.75;font-size:.96rem}.footer{position:relative;z-index:2;margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:#78959b;font-size:.78rem}
+
+.data-metrics .metric{min-height:158px!important}.data-metrics .metric .value{font-size:1.48rem!important}.data-source{background:rgba(255,255,255,.88)!important;border:1.5px solid rgba(113,190,197,.40)!important}
+.data-source p{font-size:1rem!important;line-height:1.75!important}
+.data-source h3{font-size:1.5rem!important}
+.compare-result{min-height:210px}
+.chart-card{height:100%;min-height:500px}
+.chart-card h3{font-size:1.35rem!important}
 @media(max-width:1000px){.feature-grid{grid-template-columns:repeat(2,1fr)}.hero{padding:60px 42px}.bloom-grid{grid-template-columns:1fr}.bloom-panel,.bloom-visual{min-height:auto}.bloom-visual img{min-height:0}.result-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.block-container{padding:12px 18px 60px!important}.hero{padding:48px 28px;min-height:470px}.hero h1{font-size:3.2rem}.brand-sub{display:none}.feature-grid{grid-template-columns:1fr}.section{padding-top:42px}.section h2{font-size:2.15rem}}
 </style>
@@ -180,31 +209,71 @@ def checker_row(lat, lon):
 
 def map_figure(view, show_risk=True):
     data = latest.copy()
-    if view == "Indian Ocean": data = data[data.latitude.between(-40,30) & data.plot_lon.between(20,120)]
-    elif view == "Arabian Sea": data = data[data.latitude.between(5,30) & data.plot_lon.between(45,78)]
-    elif view == "Bay of Bengal": data = data[data.latitude.between(5,23) & data.plot_lon.between(78,100)]
-    if data.empty: data = latest.copy()
-    # Keep the map responsive while retaining every flagged location.
+    if view == "Indian Ocean":
+        data = data[data.latitude.between(-40,30) & data.plot_lon.between(20,120)]
+    elif view == "Arabian Sea":
+        data = data[data.latitude.between(5,30) & data.plot_lon.between(45,78)]
+    elif view == "Bay of Bengal":
+        data = data[data.latitude.between(5,23) & data.plot_lon.between(78,100)]
+    if data.empty:
+        data = latest.copy()
+
     risk_subset = data[data.risk_flag].copy()
     normal_subset = data[~data.risk_flag].copy()
-    if len(normal_subset) > 18000:
-        normal_subset = normal_subset.sample(18000, random_state=42)
-    data = pd.concat([normal_subset, risk_subset], ignore_index=True).drop_duplicates(subset=["latitude","longitude"])
+    if len(normal_subset) > 6500:
+        normal_subset = normal_subset.sample(6500, random_state=42)
+
     vmax = max(float(data.chla.quantile(.995)), .01)
-    fig = px.scatter_geo(data, lat="latitude", lon="plot_lon", color="chla", custom_data=["latitude","longitude","chla","risk_label"], projection="mercator", color_continuous_scale=["#09264a","#0b76a3","#19c8c6","#b7e76b","#ffe27c"], range_color=(0,vmax))
-    fig.update_traces(marker=dict(size=5,opacity=.78,line=dict(width=0)), hovertemplate="Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.5f}<br>%{customdata[3]}<extra></extra>")
-    if show_risk:
-        rp = data[data.risk_flag]
-        if not rp.empty:
-            fig.add_trace(px.scatter_geo(rp,lat="latitude",lon="plot_lon",custom_data=["latitude","longitude","chla"],projection="mercator").data[0])
-            fig.data[-1].marker = dict(size=10,color="#ff5264",opacity=1,line=dict(width=1.5,color="#ffffff"))
-            fig.data[-1].name="Potential bloom risk"
-            fig.data[-1].hovertemplate="Potential bloom-risk flag<br>Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.5f}<extra></extra>"
-    ranges = {"Indian Ocean":([-40,30],[20,120]),"Arabian Sea":([5,30],[45,78]),"Bay of Bengal":([5,23],[78,100])}
-    geo = dict(showland=True,landcolor="#d7eee8",showocean=True,oceancolor="#e8f8f8",showcoastlines=True,coastlinecolor="#76aab0",showcountries=True,countrycolor="#9bc4c8",bgcolor="#06233a")
-    if view in ranges: geo.update(lataxis_range=ranges[view][0],lonaxis_range=ranges[view][1])
+    fig = px.scatter_geo(
+        normal_subset,
+        lat="latitude",
+        lon="plot_lon",
+        color="chla",
+        custom_data=["latitude","longitude","chla"],
+        projection="mercator",
+        color_continuous_scale=["#123b63","#167ea2","#22c5c3","#a9e76a","#ffe27c"],
+        range_color=(0, vmax),
+    )
+    fig.update_traces(
+        marker=dict(size=2.6, opacity=.42, line=dict(width=0)),
+        hovertemplate="Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.4f}<extra></extra>"
+    )
+
+    if show_risk and not risk_subset.empty:
+        risk_fig = px.scatter_geo(
+            risk_subset,
+            lat="latitude",
+            lon="plot_lon",
+            custom_data=["latitude","longitude","chla"],
+            projection="mercator",
+        )
+        fig.add_trace(risk_fig.data[0])
+        fig.data[-1].marker = dict(size=8, color="#ff4f67", opacity=.96, line=dict(width=1.6, color="#ffffff"))
+        fig.data[-1].name = "Potential bloom risk"
+        fig.data[-1].hovertemplate = "Potential bloom-risk flag<br>Lat %{customdata[0]:.2f}°<br>Lon %{customdata[1]:.2f}°<br>Chl-a %{customdata[2]:.4f}<extra></extra>"
+
+    ranges = {
+        "Indian Ocean":([-40,30],[20,120]),
+        "Arabian Sea":([5,30],[45,78]),
+        "Bay of Bengal":([5,23],[78,100])
+    }
+    geo = dict(
+        showland=True, landcolor="#e8f5f2", showocean=True, oceancolor="#f3fbfb",
+        showcoastlines=True, coastlinecolor="#70a8ae", showcountries=True,
+        countrycolor="#a8c9cc", bgcolor="#eefafa"
+    )
+    if view in ranges:
+        geo.update(lataxis_range=ranges[view][0], lonaxis_range=ranges[view][1])
     fig.update_geos(**geo)
-    fig.update_layout(height=620,margin=dict(l=0,r=0,t=5,b=0),paper_bgcolor="#06233a",font=dict(color="#eaffff"),legend=dict(bgcolor="rgba(6,35,58,.80)",font=dict(color="#eaffff")),coloraxis_colorbar=dict(title=dict(text="Chl-a",font=dict(color="#eaffff")),tickfont=dict(color="#eaffff")))
+    fig.update_layout(
+        height=620, margin=dict(l=0,r=0,t=5,b=0), paper_bgcolor="#eefafa",
+        plot_bgcolor="#eefafa", font=dict(color="#174b56"),
+        legend=dict(bgcolor="rgba(255,255,255,.72)", font=dict(color="#174b56")),
+        coloraxis_colorbar=dict(
+            title=dict(text="Chl-a",font=dict(color="#174b56")),
+            tickfont=dict(color="#174b56"), bgcolor="rgba(255,255,255,.72)", outlinewidth=0
+        )
+    )
     return fig
 
 # -----------------------------
@@ -296,29 +365,41 @@ elif st.session_state.page == "map":
 # CHECKER
 # -----------------------------
 elif st.session_state.page == "checker":
-    section("02 · Coordinate screening", "Check a location.", "Enter a latitude and longitude. BloomDetect finds the nearest processed 0.25° grid cell and reports its latest screening result and supporting signals.")
-    left,right=st.columns([.75,1.25],gap="large")
+    section("02 · Coordinate screening", "Check a location.", "Enter a latitude and longitude. BloomDetect finds the nearest processed 0.25° grid cell and reports its latest screening result.")
+    left,right=st.columns([.78,1.22],gap="large")
     with left:
-        st.markdown('<div class="card">',unsafe_allow_html=True)
-        lat=st.number_input("Latitude",min_value=-90.0,max_value=90.0,value=18.0,step=.25,format="%.2f")
-        lon=st.number_input("Longitude",min_value=-180.0,max_value=180.0,value=78.0,step=.25,format="%.2f")
-        st.markdown('<p style="color:#66848b;font-size:.94rem;line-height:1.7">Tip: choose a point inside the Indian Ocean, Arabian Sea or Bay of Bengal to explore the current study area.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="checker-input-card">',unsafe_allow_html=True)
+        lat=st.number_input("Latitude",min_value=-90.0,max_value=90.0,value=18.0,step=.25,format="%.2f",key="checker_lat")
+        lon=st.number_input("Longitude",min_value=-180.0,max_value=180.0,value=78.0,step=.25,format="%.2f",key="checker_lon")
+        st.markdown(f'<div class="entered-line"><b>You entered:</b> {lat:.2f}° latitude · {lon:.2f}° longitude</div>',unsafe_allow_html=True)
+        st.markdown('<div class="nearest-line">The dataset uses its own processed grid, so the displayed observation may be the nearest grid cell rather than the exact coordinate entered.</div>',unsafe_allow_html=True)
+        st.markdown('</div>',unsafe_allow_html=True)
+
     row=checker_row(lat,lon)
     with right:
         risk_yes=bool(row["risk_flag"])
         status="Potential bloom risk" if risk_yes else "No potential bloom-risk flag"
         status_color="#d94d5e" if risk_yes else "#087f8d"
         prob=probability_text(row.get("risk_probability",np.nan))
-        st.markdown(f'''<div class="card" style="min-height:300px"><div class="mini-label">Nearest processed observation</div><h3 style="font-size:2rem">{row.latitude:.2f}° · {row.longitude:.2f}°</h3><div class="result-grid"><div><span>Date</span><b>{row.date.strftime('%d %B %Y')}</b></div><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Screening</span><b style="color:{status_color}">{status}</b></div><div><span>Model probability</span><b>{prob}</b></div></div></div>''',unsafe_allow_html=True)
-    section("Context at the selected cell", "What is changing around this point?", "These values are stored in the processed prediction table and help explain why the latest observation may look different from the location's recent behaviour.")
-    vals=[("Previous chlorophyll-a",row.get("previous_chla",np.nan)),("Historical baseline",row.get("historical_baseline",np.nan)),("Recent mean",row.get("recent_mean",np.nan)),("Recent maximum",row.get("recent_max",np.nan)),("Chlorophyll anomaly",row.get("chla_anomaly",np.nan)),("Chlorophyll change",row.get("chla_change",np.nan))]
-    cols=st.columns(3,gap="medium")
-    for col,(lab,val) in zip(cols,vals):
-        with col: metric(lab,safe(val),"selected grid cell")
-    if risk_yes:
-        st.markdown('<div class="note"><b>Screening interpretation:</b> this coordinate is currently flagged as potential bloom risk by the model. Confirming a harmful algal bloom requires additional ecological, field, laboratory or species-specific evidence.</div>',unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="note"><b>Screening interpretation:</b> this coordinate is not currently flagged by the model. That does not mean algae are absent; it means the current screening rule did not flag this processed grid cell.</div>',unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="card" style="min-height:330px">
+          <div class="mini-label">Nearest processed observation</div>
+          <h3 style="font-size:2rem;margin-bottom:18px">{row.latitude:.2f}° · {row.longitude:.2f}°</h3>
+          <div class="result-grid">
+            <div><span>Date</span><b>{row.date.strftime('%d %B %Y')}</b></div>
+            <div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div>
+            <div><span>Screening</span><b style="color:{status_color}">{status}</b></div>
+            <div><span>Model probability</span><b>{prob}</b></div>
+          </div>
+        </div>
+        """,unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="note" style="margin-top:22px"><b>How the coordinate works:</b> You entered {lat:.2f}° latitude · {lon:.2f}° longitude. '
+        f'The processed dataset uses a 0.25° grid, so BloomDetect checks the nearest available grid cell at '
+        f'{row.latitude:.2f}° · {row.longitude:.2f}°. The result updates immediately when you change the coordinates. '
+        f'Nearby inputs can show the same result when they still map to the same grid cell.</div>',
+        unsafe_allow_html=True
+    )
 
 # -----------------------------
 # COMPARE
@@ -336,7 +417,7 @@ elif st.session_state.page == "compare":
     st.markdown('<div style="height:20px"></div>',unsafe_allow_html=True)
     for name,row in [("Location A",ra),("Location B",rb)]:
         status="Potential bloom risk" if row.risk_flag else "No potential bloom-risk flag"
-        st.markdown(f'<div class="card" style="margin-bottom:14px"><div class="mini-label">{name}</div><h3>{row.latitude:.2f}° · {row.longitude:.2f}°</h3><div class="result-grid"><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Screening</span><b>{status}</b></div><div><span>Anomaly</span><b>{safe(row.get("chla_anomaly",np.nan))}</b></div><div><span>Recent change</span><b>{safe(row.get("chla_change",np.nan))}</b></div></div></div>',unsafe_allow_html=True)
+        st.markdown(f'<div class="card compare-result" style="margin-bottom:14px"><div class="mini-label">{name}</div><h3>{row.latitude:.2f}° · {row.longitude:.2f}°</h3><div class="result-grid"><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Screening</span><b>{status}</b></div><div><span>Anomaly</span><b>{safe(row.get("chla_anomaly",np.nan))}</b></div><div><span>Recent change</span><b>{safe(row.get("chla_change",np.nan))}</b></div></div></div>',unsafe_allow_html=True)
 
 # -----------------------------
 # INSIGHTS
@@ -349,13 +430,13 @@ elif st.session_state.page == "insights":
         with col: metric(l,v,n)
     c1,c2=st.columns(2,gap="large")
     with c1:
-        st.markdown('<div class="card"><div class="mini-label">Screening composition</div><h3>Normal vs potential bloom-risk</h3><p>Count of the two model screening outcomes in the latest field.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="card chart-card"><div class="mini-label">Screening composition</div><h3>Normal vs potential bloom-risk</h3><p>Count of the two model screening outcomes in the latest field.</p></div>',unsafe_allow_html=True)
         chart=pd.DataFrame({"Classification":["Normal","Potential bloom risk"],"Cells":[normal_count,risk_count]})
         fig=px.bar(chart,x="Classification",y="Cells",text="Cells",color="Classification",color_discrete_map={"Normal":"#73c9cf","Potential bloom risk":"#ff6472"})
         fig.update_layout(height=360,margin=dict(l=10,r=10,t=20,b=10),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(255,255,255,.72)",showlegend=False,font=dict(color="#285761"))
         st.plotly_chart(fig,use_container_width=True)
     with c2:
-        st.markdown('<div class="card"><div class="mini-label">Chlorophyll-a distribution</div><h3>Where values cluster</h3><p>This is the distribution of the current satellite-derived field, not a direct measure of harmfulness.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="card chart-card"><div class="mini-label">Chlorophyll-a distribution</div><h3>Where values cluster</h3><p>This is the distribution of the current satellite-derived field, not a direct measure of harmfulness.</p></div>',unsafe_allow_html=True)
         fig=px.histogram(latest,x="chla",nbins=30,color_discrete_sequence=["#14a6b1"])
         fig.update_layout(height=360,margin=dict(l=10,r=10,t=20,b=10),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(255,255,255,.72)",font=dict(color="#285761"))
         st.plotly_chart(fig,use_container_width=True)
