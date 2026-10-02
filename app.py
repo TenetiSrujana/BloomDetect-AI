@@ -93,4 +93,4 @@ html,body,[data-testid="stAppViewContainer"]{background:#f1fbfb!important;color:
 .nav-wrap{position:relative;z-index:12;margin:14px 0 8px}.nav-spacer{height:2px}
 /* Type */
 .kicker{font:800 .70rem Manrope,sans-serif;letter-spacing:.19em;text-transform:uppercase;color:#0797a5;margin-bottom:12px}
-.section{position:relative;z-index:2;padding:36px 0 18px}.section h2{font:800 clamp(2.25rem,4vw,4.0rem)/1.02 Manrope,sans-serif;letter-spacing:-.06em;color:#103f49;margin:0 0 14px}.section p{color:#5f8088;line-height:1.68;margin:0;max-width:1120px;font-size:1.04rem}
+.section{position:relative;z-index:2;padding:36px 0 18px}.section h2{font:800 clamp(2.25rem,4vw,4.0rem)/1.02 Manrope,sans-serif;letter-spacing:-.06em;color:#103f49;margin:0 0 14px}.section p{color:#5f8088;line-height:1.62;margin:0;max-width:1120px;font-size:1rem}
