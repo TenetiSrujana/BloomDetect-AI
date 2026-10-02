@@ -77,19 +77,20 @@ risk = latest[latest["risk_flag"]].copy()
 ANOMALY_THRESHOLD = 0.059076173328496344
 CHANGE_THRESHOLD = 0.02007450088858604
 
-# -----------------------------
-# NAVIGATION
-# -----------------------------
-st.markdown('<div class="brand-bar"><div class="brand-left"><div class="logo">≈</div><div><div class="brand-name">BloomDetect AI</div><div class="brand-sub">Satellite-based potential bloom-risk screening</div></div></div></div>', unsafe_allow_html=True)
-nav_cols = st.columns(8, gap="small")
-for col, page in zip(nav_cols, PAGES):
-    with col:
-        if st.button(NAV[page], key=f"nav_{page}", use_container_width=True, type="primary" if st.session_state.page == page else "secondary"):
-            st.session_state.page = page
-            st.rerun()
 
 # -----------------------------
-# HELPERS
+# APP STATE + NAVIGATION
 # -----------------------------
-def metric(label, value, note):
-    st.markdown(f'<div class="metric"><div class="label">{label}</div><div class="value">{value}</div><div class="note">{note}</div></div>', unsafe_allow_html=True)
+PAGES = ["home", "map", "checker", "hotspots", "insights", "response", "method", "data"]
+NAV = {
+    "home": "Home",
+    "map": "Risk Map",
+    "checker": "Risk Checker",
+    "hotspots": "Hotspots",
+    "insights": "Insights",
+    "response": "Response Center",
+    "method": "Project Pipeline",
+    "data": "Data & Reports",
+}
+if "page" not in st.session_state:
+    st.session_state.page = "home"
