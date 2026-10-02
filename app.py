@@ -50,13 +50,14 @@ risk = latest[latest["risk_flag"]].copy()
 ANOMALY_THRESHOLD = 0.059076173328496344
 CHANGE_THRESHOLD = 0.02007450088858604
 
-PAGES = ["home", "map", "checker", "hotspots", "insights", "method", "data"]
+PAGES = ["home", "map", "checker", "hotspots", "insights", "response", "method", "data"]
 NAV = {
     "home": "Home",
     "map": "Risk Map",
     "checker": "Risk Checker",
     "hotspots": "Hotspots",
     "insights": "Insights",
+    "response": "Response Center",
     "method": "How It Works",
     "data": "Data",
 }
@@ -117,7 +118,7 @@ html,body,[data-testid="stAppViewContainer"]{background:#f1fbfb!important;color:
 .download-panel{height:132px;box-sizing:border-box;padding:21px;border-radius:19px;background:linear-gradient(135deg,#087b8b,#13adb3);border:2px solid #07576a;box-shadow:0 13px 28px rgba(8,91,102,.16);color:white}.download-panel h3{font:800 1.2rem Manrope;color:white;margin:0 0 7px}.download-panel p{font-size:.88rem;color:#e5ffff;line-height:1.45;margin:0}
 /* Charts */
 .chart-card{padding:18px!important;min-height:112px!important}.chart-card h3{font-size:1.25rem!important;margin-bottom:6px!important}.chart-card p{font-size:.90rem!important;line-height:1.5!important}.plotly .xtick text,.plotly .ytick text{font-size:12px!important;fill:#174b56!important}.plotly .gtitle,.plotly .xtitle,.plotly .ytitle{fill:#174b56!important}
-.footer{position:relative;z-index:2;border-top:1px solid #d5ebed;margin-top:44px;padding-top:18px;color:#76959b;font-size:.72rem}
+.response-card{min-height:190px}.card ul{margin:12px 0 0 18px;padding:0;color:#66848b;line-height:1.75}.card li{margin:5px 0}.footer{position:relative;z-index:2;border-top:1px solid #d5ebed;margin-top:44px;padding-top:18px;color:#76959b;font-size:.72rem}
 @media(max-width:900px){.block-container{padding:18px 18px 55px!important}.feature-grid{grid-template-columns:1fr 1fr}.bloom-grid,.checker-grid{grid-template-columns:1fr}.signal-grid{grid-template-columns:1fr 1fr}.hero{padding:48px 35px}.section{padding-top:30px}}
 @media(max-width:620px){.feature-grid{grid-template-columns:1fr}.signal-grid{grid-template-columns:1fr}.hero h1{font-size:3rem}.block-container{padding:15px 12px 45px!important}}
 </style>
@@ -127,10 +128,10 @@ html,body,[data-testid="stAppViewContainer"]{background:#f1fbfb!important;color:
 # NAVIGATION
 # -----------------------------
 st.markdown('<div class="brand-bar"><div class="brand-left"><div class="logo">≈</div><div><div class="brand-name">BloomDetect AI</div><div class="brand-sub">Satellite-based potential bloom-risk screening</div></div></div></div>', unsafe_allow_html=True)
-nav_cols = st.columns(7, gap="small")
+nav_cols = st.columns(8, gap="small")
 for col, page in zip(nav_cols, PAGES):
     with col:
-        if st.button(NAV[page], key=f"nav_{page}", use_container_width=True, type="primary" if st.session_state.page == page else "secondary"):
+        if st.button(NAV[page], key=f"nav_{page}", width="stretch", type="primary" if st.session_state.page == page else "secondary"):
             st.session_state.page = page
             st.rerun()
 
@@ -165,13 +166,34 @@ def nearest_row(lat, lon):
 def study_area(d):
     return d[d["latitude"].between(-40,30) & d["plot_lon"].between(20,120)].copy()
 
-def map_figure(show_risk=True):
-    """Fast study-area map: 1-degree blue background cells + all red risk cells."""
-    data=study_area(latest)
+def region_mask(d, region):
+    lat=d["latitude"]
+    lon=d["plot_lon"]
+    if region == "Arabian Sea":
+        return lat.between(5,30) & lon.between(45,75)
+    if region == "Bay of Bengal":
+        return lat.between(0,25) & lon.between(75.01,100)
+    if region == "Southern Indian Ocean":
+        return lat.between(-30,5) & lon.between(40,100)
+    if region == "Northern Indian Ocean":
+        return lat.between(5,30) & lon.between(75.01,120)
+    return lat.between(-40,30) & lon.between(20,120)
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    r=6371.0
+    p1=np.radians(float(lat1)); p2=np.radians(float(lat2))
+    dp=np.radians(float(lat2)-float(lat1)); dl=np.radians(float(lon2)-float(lon1))
+    a=np.sin(dp/2)**2 + np.cos(p1)*np.cos(p2)*np.sin(dl/2)**2
+    return float(2*r*np.arcsin(np.sqrt(a)))
+
+def map_figure(show_risk=True, region="Indian Ocean Study Area", layer="Chl-a field + risk"):
+    """Study-area map: aggregated blue Chl-a field with optional red screening flags."""
+    data=latest[region_mask(latest, region)].copy()
+    if data.empty: data=study_area(latest)
     if data.empty: data=latest.copy()
     # Aggregate normal cells to ~1° cells. This makes the blue ocean field visible while
     # keeping the browser responsive. All risk cells remain individually visible.
-    normal=data[~data.risk_flag].copy()
+    normal=data.copy()
     normal["lat_bin"]=(np.floor(normal.latitude)+0.5).round(2)
     normal["lon_bin"]=(np.floor(normal.plot_lon)+0.5).round(2)
     blue=(normal.groupby(["lat_bin","lon_bin"],as_index=False)
@@ -183,6 +205,12 @@ def map_figure(show_risk=True):
         range_color=(0,max(float(data.chla.quantile(.995)),.01)))
     fig.update_traces(marker=dict(size=7.5,opacity=.80,line=dict(width=0)),
         hovertemplate="Lat %{customdata[0]:.1f}°<br>Lon %{customdata[1]:.1f}°<br>Mean Chl-a %{customdata[2]:.4f}<extra></extra>")
+    if layer == "Potential risk only":
+        fig.data[0].visible=False
+    if layer == "Potential risk only":
+        show_risk=True
+    if layer == "Chl-a field only":
+        show_risk=False
     if show_risk and not risk_data.empty:
         rf=px.scatter_geo(risk_data,lat="latitude",lon="plot_lon",custom_data=["latitude","longitude","chla"])
         fig.add_trace(rf.data[0])
@@ -238,13 +266,17 @@ if st.session_state.page == "home":
 # -----------------------------
 elif st.session_state.page == "map":
     section("01 · Spatial screening","See where the signal changes.","Blue shows the latest chlorophyll-a field across the project study area. Red marks locations screened as potential bloom risk. The view is intentionally limited to the Indian Ocean, Arabian Sea and Bay of Bengal region used for interpretation.")
-    left,right=st.columns([1.45,.75],gap="medium")
-    with left:
-        show=st.toggle("Show potential-risk overlay",value=True,key="map_risk_toggle")
-    with right:
-        metric("Visible cells",f"{len(study_area(latest)):,}","latest observation")
-    st.markdown('<div class="map-card"><div class="map-study-label"><span>STUDY AREA</span><b>Indian Ocean · Arabian Sea · Bay of Bengal</b></div>',unsafe_allow_html=True)
-    st.plotly_chart(map_figure(show),use_container_width=True,config={"scrollZoom":False,"displaylogo":False,"modeBarButtonsToRemove":["lasso2d","select2d"]})
+    controls=st.columns(3,gap="medium")
+    with controls[0]:
+        region=st.selectbox("Map region",["Indian Ocean Study Area","Arabian Sea","Bay of Bengal","Southern Indian Ocean","Northern Indian Ocean"],key="map_region")
+    with controls[1]:
+        layer=st.selectbox("Map layer",["Chl-a field + risk","Chl-a field only","Potential risk only"],key="map_layer")
+    with controls[2]:
+        visible_count=int(region_mask(latest,region).sum())
+        metric("Visible cells",f"{visible_count:,}","latest observation")
+    show=layer != "Chl-a field only"
+    st.markdown(f'<div class="map-card"><div class="map-study-label"><span>LIVE VIEW</span><b>{region} · {layer}</b></div>',unsafe_allow_html=True)
+    st.plotly_chart(map_figure(show,region,layer),width="stretch",config={"scrollZoom":False,"displaylogo":False,"modeBarButtonsToRemove":["lasso2d","select2d"]})
     st.markdown('<div class="map-legend"><span>Normal field</span><span class="legend-blue"></span><span>Blue = latest chlorophyll-a field</span><span class="risk-dot"></span><span>Red = potential bloom-risk screening flag</span></div></div>',unsafe_allow_html=True)
     st.markdown('<div class="note"><b>How to use:</b> identify a red cluster, open <b>Hotspots</b> to see its concentration, then use <b>Risk Checker</b> to inspect individual coordinates.</div>',unsafe_allow_html=True)
 
@@ -266,13 +298,17 @@ elif st.session_state.page == "checker":
         with c2:
             st.markdown('<div class="coord-label">Longitude</div>',unsafe_allow_html=True)
             lon=st.number_input("lon",min_value=-180.0,max_value=180.0,step=0.25,format="%.2f",key="input_lon",label_visibility="collapsed")
-        submitted=st.form_submit_button("🔎 Check this coordinate",use_container_width=True,type="primary")
+        submitted=st.form_submit_button("🔎 Check this coordinate",width="stretch",type="primary")
     if submitted:
         st.session_state.checked_lat=float(lat)
         st.session_state.checked_lon=float(lon)
     lat=float(st.session_state.checked_lat); lon=float(st.session_state.checked_lon)
     row=nearest_row(lat,lon)
     risk_yes=bool(row["risk_flag"])
+    distance_km=haversine_km(lat,lon,row.latitude,row.longitude)
+    nearby=((latest["latitude"]-float(row.latitude)).abs()<=2.0) & ((latest["plot_lon"]-float(row.longitude)).abs()<=2.0)
+    nearby_risk=int(latest.loc[nearby,"risk_flag"].sum())
+    nearby_total=int(nearby.sum())
     status="POTENTIAL BLOOM-RISK FLAG" if risk_yes else "NO POTENTIAL-RISK FLAG"
     prob=probability_text(row.get("risk_probability",np.nan))
     anomaly=row.get("chla_anomaly",np.nan); change=row.get("chla_change",np.nan)
@@ -280,8 +316,13 @@ elif st.session_state.page == "checker":
         st.markdown('<div class="checker-grid">',unsafe_allow_html=True)
         st.markdown(f'<div class="checker-form"><div class="mini-label">Entered coordinate</div><div class="card"><h3 style="font-size:1.35rem">{lat:.2f}° · {lon:.2f}°</h3><p>Your exact input is preserved here. The satellite product is on a 0.25° grid, so the nearest available cell can have slightly different coordinates.</p></div></div>',unsafe_allow_html=True)
         status_class="yes" if risk_yes else "no"
-        st.markdown(f'<div><div class="card"><div class="mini-label">Nearest processed observation</div><h3 style="font-size:1.85rem">{row.latitude:.2f}° · {row.longitude:.2f}°</h3><div class="nearest-line">Input checked: {lat:.2f}° · {lon:.2f}°</div><div class="result-grid"><div><span>Date</span><b>{row.date.strftime("%d %B %Y")}</b></div><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Model probability</span><b>{prob}</b></div><div><span>Region</span><b>{region_name(row.latitude,row.longitude)}</b></div></div><div class="status-box {status_class}"><strong>{"🔴 " if risk_yes else "🟢 "}{status}</strong><br><span>{"This location is included in the current potential-risk screening shortlist." if risk_yes else "This location is not included in the current potential-risk screening shortlist."}</span></div></div></div>',unsafe_allow_html=True)
+        st.markdown(f'<div><div class="card"><div class="mini-label">Nearest processed observation</div><h3 style="font-size:1.85rem">{row.latitude:.2f}° · {row.longitude:.2f}°</h3><div class="nearest-line">Input checked: {lat:.2f}° · {lon:.2f}°</div><div class="result-grid"><div><span>Date</span><b>{row.date.strftime("%d %B %Y")}</b></div><div><span>Chlorophyll-a</span><b>{safe(row.chla)}</b></div><div><span>Model score</span><b>{prob}</b></div><div><span>Nearest-cell distance</span><b>{distance_km:.1f} km</b></div></div><div class="status-box {status_class}"><strong>{"🔴 " if risk_yes else "🟢 "}{status}</strong><br><span>{"This location is included in the current potential-risk screening shortlist." if risk_yes else "This location is not included in the current potential-risk screening shortlist."}</span></div></div></div>',unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
+    nc1,nc2,nc3=st.columns(3,gap="medium")
+    with nc1: metric("Nearby flagged cells",f"{nearby_risk:,}","within ~2° of nearest cell")
+    with nc2: metric("Nearby processed cells",f"{nearby_total:,}","same spatial window")
+    with nc3: metric("Region",region_name(row.latitude,row.longitude),"nearest processed cell")
+    st.markdown('<div class="note"><b>Spatial context:</b> neighbouring flags can show whether the result is isolated or part of a local concentration. This is a spatial screening aid, not a measure of confirmed bloom severity.</div>',unsafe_allow_html=True)
     st.markdown('<div class="mini-label" style="margin-top:20px">Signals behind the screening</div>',unsafe_allow_html=True)
     sg=st.columns(4,gap="small")
     signal_items=[("Current Chl-a",safe(row.chla)),("Historical baseline",safe(row.get("historical_baseline",np.nan))), ("Anomaly",safe(anomaly)), ("Recent change",safe(change))]
@@ -296,7 +337,7 @@ elif st.session_state.page == "checker":
         explanation="This cell is not flagged by the current proxy rule. " + (" and ".join(checks) + " the project threshold." if checks else "Supporting historical signals are unavailable.")
     st.markdown(f'<div class="note"><b>Why this result?</b> {explanation} This is a screening explanation, not proof of a harmful bloom.</div>',unsafe_allow_html=True)
     report=pd.DataFrame([{"input_latitude":lat,"input_longitude":lon,"nearest_latitude":row.latitude,"nearest_longitude":row.longitude,"date":row.date.strftime("%Y-%m-%d"),"chla":row.chla,"historical_baseline":row.get("historical_baseline",np.nan),"chla_anomaly":anomaly,"chla_change":change,"risk_label":row.risk_label,"risk_probability":row.get("risk_probability",np.nan)}])
-    st.download_button("⬇ Download this location report",report.to_csv(index=False).encode(),"bloomdetect_location_report.csv","text/csv",use_container_width=True)
+    st.download_button("⬇ Download this location report",report.to_csv(index=False).encode(),"bloomdetect_location_report.csv","text/csv",width="stretch")
 
 # -----------------------------
 # HOTSPOTS
@@ -318,11 +359,11 @@ elif st.session_state.page == "hotspots":
         hfig=px.scatter_geo(zones,lat="lat_zone",lon="lon_zone",size="flagged_cells",color="flagged_cells",color_continuous_scale=[[0,"#ffd7dc"],[.45,"#ff6a78"],[1,"#b51f3a"]],projection="equirectangular",hover_data={"lat_zone":":.2f","lon_zone":":.2f","flagged_cells":True,"mean_chla":":.4f","max_chla":":.4f"})
         hfig.update_geos(showland=True,landcolor="#dceae8",showocean=True,oceancolor="#dff7f8",showcoastlines=True,coastlinecolor="#4f9aa4",showcountries=True,countrycolor="#9abdc2",bgcolor="#dff7f8",lataxis_range=[-40,30],lonaxis_range=[20,120],center=dict(lat=-5,lon=70),projection_scale=1.08)
         hfig.update_layout(height=510,margin=dict(l=0,r=0,t=0,b=0),paper_bgcolor="#dff7f8",plot_bgcolor="#dff7f8",font=dict(color="#174b56"),coloraxis_colorbar=dict(title="Flagged cells",tickfont=dict(color="#174b56"),bgcolor="rgba(255,255,255,.85)",thickness=13,len=.52))
-        st.plotly_chart(hfig,use_container_width=True,config={"scrollZoom":False,"displaylogo":False})
+        st.plotly_chart(hfig,width="stretch",config={"scrollZoom":False,"displaylogo":False})
         show=zones.copy(); show["Zone"]=show.apply(lambda r:f"{r.lat_zone:.2f}°, {r.lon_zone:.2f}°",axis=1); show["Mean Chl-a"]=show.mean_chla.round(4); show["Max Chl-a"]=show.max_chla.round(4)
         show=show[["Zone","flagged_cells","Mean Chl-a","Max Chl-a"]].rename(columns={"flagged_cells":"Flagged cells"})
         st.markdown('<div class="mini-label" style="margin-top:22px">Investigation list</div>',unsafe_allow_html=True)
-        st.dataframe(show,use_container_width=True,hide_index=True)
+        st.dataframe(show,width="stretch",hide_index=True)
         st.markdown('<div class="note"><b>Recommended workflow:</b> use a hotspot to identify a concentration, then inspect representative coordinates in Risk Checker and combine the satellite signal with field or environmental evidence.</div>',unsafe_allow_html=True)
 
 # -----------------------------
@@ -340,7 +381,7 @@ elif st.session_state.page == "insights":
         sub=latest[cond]; regional.append((name,len(sub),int(sub.risk_flag.sum()),100*sub.risk_flag.mean() if len(sub) else 0))
     reg=pd.DataFrame(regional,columns=["Region","Cells","Potential-risk cells","Risk share"])
     st.markdown('<div class="mini-label" style="margin-top:23px">Regional watchlist</div>',unsafe_allow_html=True)
-    st.dataframe(reg.style.format({"Risk share":"{:.2f}%"}),use_container_width=True,hide_index=True)
+    st.dataframe(reg.style.format({"Risk share":"{:.2f}%"}),width="stretch",hide_index=True)
     c1,c2=st.columns(2,gap="large")
     with c1:
         st.markdown('<div class="card chart-card"><div class="mini-label">Screening composition</div><h3>Normal vs potential bloom-risk</h3><p>Count of the two latest-field screening outcomes.</p></div>',unsafe_allow_html=True)
@@ -348,18 +389,45 @@ elif st.session_state.page == "insights":
         fig=px.bar(chart,x="Classification",y="Cells",text="Cells",color="Classification",color_discrete_map={"Normal":"#4aaeb8","Potential bloom risk":"#ef5362"})
         fig.update_traces(textposition="outside",cliponaxis=False)
         fig.update_layout(height=320,margin=dict(l=55,r=20,t=30,b=60),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="#ffffff",showlegend=False,font=dict(color="#174b56"),xaxis=dict(title="Screening outcome",title_font=dict(size=13,color="#174b56"),tickfont=dict(size=12,color="#174b56"),automargin=True),yaxis=dict(title="Number of cells",title_font=dict(size=13,color="#174b56"),tickfont=dict(size=12,color="#174b56"),gridcolor="#d6e7e8",automargin=True))
-        st.plotly_chart(fig,use_container_width=True,config={"displaylogo":False})
+        st.plotly_chart(fig,width="stretch",config={"displaylogo":False})
     with c2:
         st.markdown('<div class="card chart-card"><div class="mini-label">Chlorophyll-a distribution</div><h3>Where values cluster</h3><p>Distribution of the current satellite-derived field, not a direct measure of harmfulness.</p></div>',unsafe_allow_html=True)
         fig=px.histogram(latest,x="chla",nbins=30,color_discrete_sequence=["#159eaa"])
         fig.update_layout(height=320,margin=dict(l=55,r=20,t=30,b=60),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="#ffffff",font=dict(color="#174b56"),xaxis=dict(title="Chlorophyll-a",title_font=dict(size=13,color="#174b56"),tickfont=dict(size=12,color="#174b56"),automargin=True),yaxis=dict(title="Number of cells",title_font=dict(size=13,color="#174b56"),tickfont=dict(size=12,color="#174b56"),gridcolor="#d6e7e8",automargin=True))
-        st.plotly_chart(fig,use_container_width=True,config={"displaylogo":False})
+        st.plotly_chart(fig,width="stretch",config={"displaylogo":False})
+    st.markdown('<div class="mini-label" style="margin-top:24px">Proxy screening audit</div>',unsafe_allow_html=True)
+    audit=((latest["chla_anomaly"]>=ANOMALY_THRESHOLD) & (latest["chla_change"]>=CHANGE_THRESHOLD)) if {"chla_anomaly","chla_change"}.issubset(latest.columns) else pd.Series(False,index=latest.index)
+    a1,a2,a3=st.columns(3,gap="medium")
+    with a1: metric("Anomaly threshold",safe(ANOMALY_THRESHOLD,4),"project proxy rule")
+    with a2: metric("Change threshold",safe(CHANGE_THRESHOLD,4),"project proxy rule")
+    with a3: metric("Cells meeting both",f"{int(audit.sum()):,}","independent rule check")
     st.markdown('<div class="section" style="padding-top:28px"><div class="kicker">Investigation queue</div><h2>Which coordinates are currently flagged?</h2><p>This is a follow-up list, not a ranking of confirmed HAB severity.</p></div>',unsafe_allow_html=True)
     q=risk.copy().sort_values(["chla"],ascending=False).head(25)
     q=q[[c for c in ["latitude","longitude","chla","chla_anomaly","chla_change","risk_probability","risk_label"] if c in q.columns]].copy()
     for c in ["chla","chla_anomaly","chla_change","risk_probability"]:
         if c in q.columns: q[c]=q[c].round(4)
-    st.dataframe(q,use_container_width=True,hide_index=True)
+    st.dataframe(q,width="stretch",hide_index=True)
+
+# -----------------------------
+# RESPONSE CENTER
+# -----------------------------
+elif st.session_state.page == "response":
+    section("05 · Response support","What should happen after a flag?","BloomDetect is useful only if a screening result leads to a sensible next step. This page turns a satellite flag into a validation workflow without pretending the model can confirm species or toxins.")
+    cols=st.columns(3,gap="medium")
+    cards=[
+        ("🔎","1 · Verify","Open Risk Map and Risk Checker. Confirm the flagged cell, inspect nearby flagged cells and record the observation date."),
+        ("🧪","2 · Validate","Combine the satellite signal with field observations, water-quality measurements and laboratory identification where available."),
+        ("📢","3 · Act on evidence","If independent evidence supports a bloom concern, follow the relevant local environmental, fisheries or public-health monitoring procedure."),
+    ]
+    for col,(ic,h,p) in zip(cols,cards):
+        with col: st.markdown(f'<div class="feature response-card"><div class="icon">{ic}</div><h3>{h}</h3><p>{p}</p></div>',unsafe_allow_html=True)
+    section("If a location is flagged","Use the flag as a trigger for investigation, not as a diagnosis.","The current project label is a proxy potential-bloom-risk condition derived from chlorophyll-a behaviour. It does not identify a harmful species, toxin, or human-health risk.")
+    c1,c2=st.columns(2,gap="medium")
+    with c1:
+        st.markdown('<div class="card"><div class="mini-label">For environmental teams</div><h3>Field validation checklist</h3><ul><li>Check the flagged coordinate and surrounding cells.</li><li>Compare with recent local observations and known bloom reports.</li><li>Collect appropriate water samples when a field investigation is warranted.</li><li>Use microscopy, species identification and toxin testing when the event requires confirmation.</li></ul></div>',unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="card"><div class="mini-label">For decision-makers</div><h3>What the dashboard can and cannot support</h3><ul><li><b>Can support:</b> spatial screening, prioritisation of locations and repeat observation planning.</li><li><b>Cannot establish:</b> harmfulness, species identity, toxin concentration or a public-health advisory by itself.</li><li>Use local authority guidance for any public, fisheries or water-use decision.</li></ul></div>',unsafe_allow_html=True)
+    st.markdown('<div class="note"><b>Important:</b> there is no single satellite treatment that can safely be recommended from this dataset. The appropriate response depends on the confirmed organism, environment and local authority procedures. BloomDetect is designed to help decide <i>where to investigate next</i>.</div>',unsafe_allow_html=True)
 
 # -----------------------------
 # METHOD
@@ -369,6 +437,7 @@ elif st.session_state.page == "method":
     steps=[("01","Observe","EOS-06 OCM-3 analysed chlorophyll-a observations provide the environmental signal."),("02","Clean","Invalid observations are removed and the spatial-temporal records are organized consistently."),("03","Build context","Previous observation, historical baseline, recent mean, recent maximum, anomaly and change features provide temporal context."),("04","Screen","A Decision Tree model screens the prepared features for the project proxy potential-risk label."),("05","Map","The latest screening output is returned to geographic coordinates so spatial concentrations can be inspected."),("06","Investigate","Flagged cells and hotspot concentrations become a shortlist for additional observations and validation.")]
     for n,h,p in steps:
         st.markdown(f'<div class="step"><div class="step-num">{n}</div><div><h3>{h}</h3><p>{p}</p></div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="card" style="margin-top:20px"><div class="mini-label">Model used in the current build</div><h3>Decision Tree screening model</h3><p><b>Input features:</b> current Chl-a, previous Chl-a, historical baseline, recent mean and recent maximum. The proxy target was created from Chl-a anomaly and recent change thresholds, which are kept out of the model inputs to reduce direct target leakage.</p><p style="margin-top:10px"><b>Held-out time test:</b> accuracy 99.93%, precision 83.31%, recall 99.88%, F1 90.85%, ROC-AUC 99.97%. These are model results for the project proxy screening task, not verified HAB detection performance.</p></div>',unsafe_allow_html=True)
     st.markdown('<div class="note"><b>Scientific boundary:</b> the current satellite dataset does not contain confirmed harmful-bloom species or toxin labels. The system therefore reports <b>potential bloom risk</b>, not confirmed HAB detection. Satellite screening should be combined with field observations and other environmental evidence.</div>',unsafe_allow_html=True)
 
 # -----------------------------
@@ -380,6 +449,9 @@ elif st.session_state.page == "data":
     for col,(l,v,n) in zip(cols,[("Product","E06OCM_L4_AC","EOS-06 / OCM-3"),("Grid","0.25°","latitude × longitude"),("Latest cells",f"{len(latest):,}","processed observation"),("Latest date",latest_date.strftime("%d %b %Y"),"processed dataset")]):
         with col: metric(l,v,n)
     st.markdown('<div class="card" style="margin-top:18px"><div class="mini-label">Source & interpretation</div><h3>What the dashboard is built from.</h3><p><b>Satellite product:</b> EOS-06 OCM-3 Level-4 Analysed Chlorophyll Product (E06OCM_L4_AC).</p><p><b>Primary variable:</b> chlorophyll-a (<code>chla</code>).</p><p><b>Spatial structure:</b> 0.25° latitude × 0.25° longitude global-ocean grid.</p><p><b>Interpretation:</b> the product provides an environmental observation signal. It does not contain confirmed harmful-bloom species or toxin labels.</p></div>',unsafe_allow_html=True)
+    dc=st.columns(4,gap="medium")
+    for col,(lab,val,note) in zip(dc,[("Processed locations",f"{len(latest):,}","latest field"),("Potential-risk cells",f"{len(risk):,}","latest field"),("Grid spacing","0.25°","latitude × longitude"),("Latest date",latest_date.strftime("%d %b %Y"),"processed field")]):
+        with col: metric(lab,val,note)
     section("Data dictionary","Fields available in the processed file.","The public dashboard uses these fields to inspect observations and screening context.")
     fields=[("latitude","Grid latitude","degrees"),("longitude","Grid longitude","degrees"),("date","Observation date","date"),("chla","Satellite-derived chlorophyll-a","product value"),("risk_label","Model screening result","Normal / Potential Bloom Risk"),("risk_probability","Model probability when available","stored model probability"),("previous_chla","Previous observation","derived feature"),("historical_baseline","Historical baseline","derived feature"),("recent_mean","Recent mean","derived feature"),("recent_max","Recent maximum","derived feature"),("chla_anomaly","Chlorophyll anomaly","derived feature"),("chla_change","Change from previous observation","derived feature")]
     rows="".join([f"<tr><td>{a}</td><td>{b}</td><td>{c}</td></tr>" for a,b,c in fields])
@@ -388,10 +460,10 @@ elif st.session_state.page == "data":
     c1,c2=st.columns(2,gap="large")
     with c1:
         st.markdown('<div class="download-panel"><h3>Latest observation table</h3><p>Complete latest processed prediction table used by the dashboard.</p></div>',unsafe_allow_html=True)
-        st.download_button("⬇ Download latest observations",latest.to_csv(index=False).encode(),"bloomdetect_latest_observations.csv","text/csv",use_container_width=True)
+        st.download_button("⬇ Download latest observations",latest.to_csv(index=False).encode(),"bloomdetect_latest_observations.csv","text/csv",width="stretch")
     with c2:
         st.markdown('<div class="download-panel"><h3>Potential-risk shortlist</h3><p>Only the latest locations currently flagged for potential bloom risk.</p></div>',unsafe_allow_html=True)
-        st.download_button("⬇ Download potential-risk locations",risk.to_csv(index=False).encode(),"bloomdetect_potential_risk.csv","text/csv",use_container_width=True)
+        st.download_button("⬇ Download potential-risk locations",risk.to_csv(index=False).encode(),"bloomdetect_potential_risk.csv","text/csv",width="stretch")
     st.markdown('<div class="note"><b>Data boundary:</b> this is not a live real-time monitoring feed. Satellite screening should be combined with field observations and other environmental evidence before decisions about a harmful event are made.</div>',unsafe_allow_html=True)
 
 st.markdown(f'<div class="footer">BloomDetect AI · EOS-06 / OCM-3 · Potential bloom-risk screening · Current data through {latest_date.strftime("%d %B %Y")}</div>',unsafe_allow_html=True)
