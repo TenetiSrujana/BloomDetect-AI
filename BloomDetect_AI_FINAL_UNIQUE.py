@@ -1,0 +1,929 @@
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+# ============================================================
+# BLOOMDETECT AI
+# Final Streamlit application
+# Navigation: Home | Risk Map | Location | Insights | Data
+# ============================================================
+
+st.set_page_config(
+    page_title="BloomDetect AI",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+BASE = Path(__file__).resolve().parent
+PREDICTION_FILE = BASE / "latest_bloom_risk_predictions.csv"
+IMAGE_FILE = BASE / "bloomdetect_bloom_process.png"
+HISTORY_FILES = [
+    BASE / "bloomdetect_history_web.csv.gz",
+    BASE / "bloomdetect_history.csv.gz",
+    BASE / "bloomdetect_history.csv",
+]
+
+LAT_MIN, LAT_MAX = -40.0, 30.0
+LON_MIN, LON_MAX = 20.0, 120.0
+ANOMALY_THRESHOLD = 0.059076173328496344
+CHANGE_THRESHOLD = 0.02007450088858604
+
+# ============================================================
+# DATA LOADING
+# ============================================================
+
+@st.cache_data(show_spinner="Loading BloomDetect field…")
+def load_predictions():
+    if not PREDICTION_FILE.exists():
+        raise FileNotFoundError(
+            "latest_bloom_risk_predictions.csv was not found beside app.py."
+        )
+
+    df = pd.read_csv(PREDICTION_FILE)
+    required = {"latitude", "longitude", "date", "chla", "risk_label"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError("Prediction file is missing: " + ", ".join(sorted(missing)))
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    numeric = [
+        "latitude", "longitude", "chla", "risk_probability", "model_score",
+        "previous_chla", "historical_baseline", "recent_mean", "recent_max",
+        "chla_anomaly", "chla_change",
+    ]
+    for col in numeric:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(subset=["latitude", "longitude", "date", "chla"]).copy()
+    df["risk_flag"] = (
+        df["risk_label"].astype(str).str.strip().str.lower()
+        == "potential bloom risk"
+    )
+    return df
+
+
+@st.cache_data(show_spinner="Loading observation timeline…")
+def load_history():
+    source = next((p for p in HISTORY_FILES if p.exists()), None)
+    if source is None:
+        return pd.DataFrame(), None
+
+    h = pd.read_csv(source)
+    required = {"date", "lat_bin", "lon_bin", "chla", "risk"}
+    if not required.issubset(h.columns):
+        return pd.DataFrame(), None
+
+    h["date"] = pd.to_datetime(h["date"], errors="coerce")
+    for col in ["lat_bin", "lon_bin", "chla", "risk", "cells", "max_chla"]:
+        if col in h.columns:
+            h[col] = pd.to_numeric(h[col], errors="coerce")
+    h = h.replace([np.inf, -np.inf], np.nan)
+    h = h.dropna(subset=["date", "lat_bin", "lon_bin", "chla"]).copy()
+    h["risk"] = h["risk"].fillna(0).astype(int)
+    h = h[
+        h["lat_bin"].between(LAT_MIN, LAT_MAX)
+        & h["lon_bin"].between(LON_MIN, LON_MAX)
+    ].copy()
+    return h, source.name
+
+
+try:
+    df = load_predictions()
+except Exception as exc:
+    st.error("BloomDetect AI could not load the project data.")
+    st.code(str(exc))
+    st.stop()
+
+history, history_name = load_history()
+history_available = not history.empty
+latest_date = df["date"].max()
+latest = df[df["date"].dt.normalize() == latest_date.normalize()].copy()
+risk_latest = latest[latest["risk_flag"]].copy()
+
+# ============================================================
+# VISUAL SYSTEM
+# ============================================================
+
+st.markdown(
+    """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+:root{
+  --ink:#0b3e49;
+  --ink2:#165a65;
+  --teal:#079eaa;
+  --teal2:#0b7280;
+  --mint:#dff7f5;
+  --mist:#f4fbfb;
+  --line:#c4e3e5;
+  --muted:#6b858b;
+  --red:#e84e5d;
+  --green:#22a878;
+  --blue:#2387aa;
+  --gold:#d8952e;
+}
+
+html,body,[data-testid="stAppViewContainer"]{
+  background:#f5fbfb!important;
+  color:var(--ink)!important;
+  font-family:'DM Sans',sans-serif!important;
+}
+.stApp{
+  background:
+    radial-gradient(circle at 15% 0%,rgba(7,158,170,.07),transparent 28%),
+    radial-gradient(circle at 90% 12%,rgba(34,168,120,.06),transparent 24%),
+    #f5fbfb!important;
+}
+[data-testid="stHeader"],[data-testid="stToolbar"],#MainMenu,footer,[data-testid="stSidebar"]{display:none!important;}
+.block-container{max-width:1360px!important;padding:22px 34px 52px!important;margin:auto!important;}
+
+/* Header */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:16px 18px;background:rgba(255,255,255,.94);border:1px solid var(--line);
+  border-radius:20px;box-shadow:0 12px 35px rgba(9,76,86,.07);
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}.brandmark{
+  width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+  color:white;font:800 20px Manrope;background:linear-gradient(145deg,#12b9bd,#086778);
+  box-shadow:0 8px 18px rgba(8,103,120,.22);
+}.brandtitle{font:800 1.15rem Manrope;letter-spacing:-.04em;color:var(--ink)}
+.brandsub{font-size:.68rem;color:var(--muted);margin-top:2px}.topmeta{text-align:right;font-size:.66rem;color:var(--muted)}
+.topmeta strong{display:block;color:var(--ink2);font:700 .76rem Manrope;margin-top:2px}
+
+/* Native Streamlit controls */
+.stButton>button,.stDownloadButton>button{
+  border:1px solid #8dbec4!important;border-radius:13px!important;background:white!important;
+  color:var(--ink)!important;font-weight:700!important;min-height:43px!important;
+  box-shadow:0 4px 13px rgba(10,76,87,.05)!important;transition:.15s ease!important;
+}
+.stButton>button:hover,.stDownloadButton>button:hover{border-color:var(--teal)!important;background:#e9fbfa!important;transform:translateY(-1px)}
+.stButton>button[kind="primary"]{background:var(--ink)!important;color:white!important;border-color:var(--ink)!important}
+.stButton>button[kind="primary"]:hover{background:var(--teal2)!important}
+[data-baseweb="select"]>div,.stNumberInput input{
+  border:1px solid #9fcbd0!important;border-radius:11px!important;background:#fff!important;
+}
+[data-testid="stSlider"]{padding-top:4px!important}
+
+/* Page typography */
+.kicker{font:800 .63rem Manrope;letter-spacing:.17em;text-transform:uppercase;color:var(--teal);margin-bottom:8px}
+.title{font:800 clamp(2.25rem,4.6vw,4.25rem)/1 Manrope;color:var(--ink);letter-spacing:-.065em;margin:0 0 12px}
+.subtitle{font-size:.92rem;line-height:1.65;color:#5d7a81;max-width:940px;margin-bottom:22px}
+.page-head{padding:28px 2px 8px}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;min-height:420px;border-radius:30px;margin-top:20px;
+  background:linear-gradient(135deg,#063c4e 0%,#086a78 48%,#0ba9aa 100%);
+  box-shadow:0 25px 60px rgba(5,75,87,.18);padding:48px 52px;display:flex;align-items:center}
+.hero:before{content:"";position:absolute;width:520px;height:520px;right:-180px;top:-210px;border:70px solid rgba(220,255,254,.09);border-radius:50%;box-shadow:0 0 0 55px rgba(220,255,254,.045),0 0 0 120px rgba(220,255,254,.025)}
+.hero:after{content:"";position:absolute;left:-140px;bottom:-180px;width:380px;height:380px;border:1px solid rgba(255,255,255,.11);border-radius:50%}
+.hero-content{position:relative;z-index:2;max-width:790px}.hero .kicker{color:#a6fffb}.hero h1{font:800 clamp(3.2rem,6.4vw,6rem)/.92 Manrope;color:#efffff;letter-spacing:-.08em;margin:0 0 20px}.hero p{color:#dcf7f8;font-size:1rem;line-height:1.7;max-width:740px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.chip{padding:8px 12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.11);border-radius:999px;color:#efffff;font-size:.7rem;font-weight:700}
+
+/* Cards / metrics */
+.metric{min-height:112px;padding:18px;border:1px solid var(--line);border-radius:18px;background:white;box-shadow:0 9px 25px rgba(10,78,89,.055)}
+.metric-label{font:800 .58rem Manrope;letter-spacing:.13em;text-transform:uppercase;color:#759096}.metric-value{font:800 1.55rem Manrope;color:var(--ink);margin-top:5px;letter-spacing:-.035em}.metric-note{font-size:.67rem;color:var(--muted);margin-top:4px}
+.card{padding:22px;border:1px solid var(--line);border-radius:20px;background:white;box-shadow:0 9px 25px rgba(10,78,89,.055)}
+.card-title{font:800 1.1rem Manrope;color:var(--ink);margin-bottom:7px}.card-copy{font-size:.82rem;line-height:1.6;color:#668188}
+.callout{padding:13px 15px;margin-top:14px;border-left:4px solid var(--teal);border-radius:0 12px 12px 0;background:#e8f8f8;color:#56767c;font-size:.75rem;line-height:1.55}.callout strong{color:var(--ink2)}
+.status{padding:16px;border-radius:16px;border:1px solid;margin-top:16px}.status-risk{background:#fff1f3;border-color:#f19aa3;color:#8e2f3b}.status-ok{background:#eafaf3;border-color:#70c8aa;color:#16684f}.status-title{font:800 .9rem Manrope;margin-bottom:4px}
+
+/* Map */
+.map-shell{border:1px solid #a9d4d8;border-radius:22px;overflow:hidden;background:#e5f7f8;box-shadow:0 14px 35px rgba(9,80,92,.08)}
+.map-header{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:13px 16px;background:white;border-bottom:1px solid var(--line)}
+.map-header strong{font:800 .82rem Manrope;color:var(--ink)}.map-header span{font-size:.66rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:15px;padding:11px 15px;background:white;border-top:1px solid var(--line);font-size:.68rem;color:#5d7a81}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+
+/* Tables / charts */
+.section-label{font:800 .61rem Manrope;letter-spacing:.16em;text-transform:uppercase;color:#759096;margin:25px 0 8px}
+[data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.chart-card{padding:4px 0 0}
+
+.footer{margin-top:38px;padding-top:13px;border-top:1px solid #d6e9ea;color:#789197;font-size:.64rem}
+.small-muted{font-size:.69rem;color:var(--muted)}
+
+@media(max-width:900px){.block-container{padding:15px 18px 40px!important}.hero{padding:36px 27px;min-height:400px}.hero h1{font-size:3.3rem}.topmeta{display:none}}
+@media(max-width:620px){.block-container{padding:10px 11px 32px!important}.hero{padding:31px 22px}.hero h1{font-size:2.8rem}.map-header{display:block}.map-header span{display:block;margin-top:5px}}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def fmt_date(value):
+    return pd.to_datetime(value).strftime("%d %b %Y")
+
+
+def fmt_num(value, digits=4):
+    try:
+        if pd.isna(value):
+            return "Unavailable"
+        return f"{float(value):.{digits}f}"
+    except Exception:
+        return "Unavailable"
+
+
+def metric(label, value, note):
+    st.markdown(
+        f'<div class="metric"><div class="metric-label">{label}</div><div class="metric-value">{value}</div><div class="metric-note">{note}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def page_head(kicker, title, copy):
+    st.markdown(
+        f'<div class="page-head"><div class="kicker">{kicker}</div><h1 class="title">{title}</h1><div class="subtitle">{copy}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def card(title, copy, extra=""):
+    st.markdown(
+        f'<div class="card"><div class="card-title">{title}</div><div class="card-copy">{copy}</div>{extra}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def footer():
+    st.markdown(
+        f'<div class="footer">BloomDetect AI · EOS-06 / Oceansat-3 OCM-3 · Potential bloom-risk screening · Latest processed field: {fmt_date(latest_date)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def geo_style():
+    return dict(
+        projection_type="mercator",
+        showland=True,
+        landcolor="#dce8e7",
+        showocean=True,
+        oceancolor="#e4f7f8",
+        showcountries=True,
+        countrycolor="#9abdc2",
+        coastlinecolor="#6fa6ae",
+        showlakes=True,
+        lakecolor="#e4f7f8",
+        bgcolor="#e4f7f8",
+        lonaxis=dict(range=[LON_MIN, LON_MAX], dtick=10, showgrid=True, gridcolor="#c7e3e5"),
+        lataxis=dict(range=[LAT_MIN, LAT_MAX], dtick=10, showgrid=True, gridcolor="#c7e3e5"),
+    )
+
+
+def base_map(height=620):
+    fig = go.Figure()
+    fig.update_geos(**geo_style())
+    fig.update_layout(
+        height=height,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="#e4f7f8",
+        plot_bgcolor="#e4f7f8",
+        font=dict(family="DM Sans", color="#0b3e49"),
+        legend=dict(
+            orientation="h", y=0.01, x=0.02,
+            bgcolor="rgba(255,255,255,.92)", bordercolor="#b9dfe2", borderwidth=1,
+        ),
+        hoverlabel=dict(bgcolor="#0b3e49", font_color="white"),
+    )
+    return fig
+
+
+def latest_map(frame, view):
+    fig = base_map()
+    field = frame.copy()
+    if len(field) > 16000:
+        field = field.sample(16000, random_state=42)
+
+    if view == "Screening":
+        fig.add_trace(go.Scattergeo(
+            lon=field.longitude, lat=field.latitude, mode="markers",
+            name="Processed field",
+            marker=dict(size=3.8, color="#2387aa", opacity=.30),
+            hovertemplate="Lat %{lat:.3f}°<br>Lon %{lon:.3f}°<br>Processed ocean cell<extra></extra>",
+        ))
+        flagged = frame[frame.risk_flag].copy()
+        if not flagged.empty:
+            fig.add_trace(go.Scattergeo(
+                lon=flagged.longitude, lat=flagged.latitude, mode="markers",
+                name="Potential-risk cell",
+                marker=dict(size=7.5, color="#e84e5d", opacity=.92, line=dict(width=.6, color="white")),
+                customdata=np.c_[
+                    flagged.chla,
+                    flagged["risk_probability"] if "risk_probability" in flagged else np.nan,
+                ],
+                hovertemplate=(
+                    "Lat %{lat:.3f}°<br>Lon %{lon:.3f}°<br>"
+                    "Chl-a %{customdata[0]:.4f}<br>"
+                    "Screening probability %{customdata[1]:.1%}<extra></extra>"
+                ),
+            ))
+    else:
+        column = {
+            "Chlorophyll-a": "chla",
+            "Recent change": "chla_change",
+            "Historical anomaly": "chla_anomaly",
+        }[view]
+        if column not in frame.columns:
+            return None
+        plot = frame.dropna(subset=[column]).copy()
+        if plot.empty:
+            return None
+        if len(plot) > 16000:
+            plot = plot.sample(16000, random_state=42)
+        scale = "YlGnBu" if view == "Chlorophyll-a" else "RdBu_r"
+        title = "Chl-a" if view == "Chlorophyll-a" else "Signal"
+        fig.add_trace(go.Scattergeo(
+            lon=plot.longitude, lat=plot.latitude, mode="markers", name=view,
+            marker=dict(
+                size=4.2, color=plot[column], colorscale=scale, opacity=.78,
+                colorbar=dict(title=title, thickness=13),
+            ),
+            customdata=np.c_[plot.chla, plot[column]],
+            hovertemplate="Lat %{lat:.3f}°<br>Lon %{lon:.3f}°<br>Chl-a %{customdata[0]:.4f}<br>Signal %{customdata[1]:.4f}<extra></extra>",
+        ))
+        flagged = frame[frame.risk_flag].copy()
+        if not flagged.empty:
+            fig.add_trace(go.Scattergeo(
+                lon=flagged.longitude, lat=flagged.latitude, mode="markers",
+                name="Potential-risk cells",
+                marker=dict(size=6.5, color="#e84e5d", opacity=.9),
+                hovertemplate="Potential bloom-risk screening cell<extra></extra>",
+            ))
+    return fig
+
+
+def history_map(selected):
+    fig = base_map()
+    field = selected.copy()
+    if len(field) > 18000:
+        field = field.sample(18000, random_state=42)
+
+    fig.add_trace(go.Scattergeo(
+        lon=field.lon_bin, lat=field.lat_bin, mode="markers",
+        name="Processed field",
+        marker=dict(size=5.4, color="#2387aa", opacity=.38),
+        customdata=field.chla,
+        hovertemplate="Lat %{lat:.1f}°<br>Lon %{lon:.1f}°<br>Chl-a %{customdata:.4f}<extra></extra>",
+    ))
+    high = selected[selected.chla >= selected.chla.quantile(.90)].copy()
+    if not high.empty:
+        if len(high) > 4500:
+            high = high.sample(4500, random_state=42)
+        fig.add_trace(go.Scattergeo(
+            lon=high.lon_bin, lat=high.lat_bin, mode="markers",
+            name="Higher concentration",
+            marker=dict(size=7, color="#22a878", opacity=.52),
+            hovertemplate="Higher Chl-a concentration<extra></extra>",
+        ))
+    flagged = selected[selected.risk == 1]
+    if not flagged.empty:
+        fig.add_trace(go.Scattergeo(
+            lon=flagged.lon_bin, lat=flagged.lat_bin, mode="markers",
+            name="Potential-risk cell",
+            marker=dict(size=9, color="#e84e5d", opacity=.94, line=dict(width=.5, color="white")),
+            hovertemplate="Potential bloom-risk screening cell<extra></extra>",
+        ))
+    return fig
+
+
+def nearest_ocean_cell(lat, lon):
+    valid = latest[
+        latest.chla.notna()
+        & latest.latitude.between(LAT_MIN, LAT_MAX)
+        & latest.longitude.between(LON_MIN, LON_MAX)
+        & (latest.chla > 0)
+    ].copy()
+    if valid.empty:
+        return None, None
+    lat_value = float(lat)
+    lon_value = float(lon)
+    distance = ((valid.latitude - lat_value) / 70.0) ** 2 + ((valid.longitude - lon_value) / 100.0) ** 2
+    idx = distance.idxmin()
+    row = valid.loc[idx]
+    separation = float(np.hypot(float(row.latitude) - lat_value, float(row.longitude) - lon_value))
+    return row, separation
+
+
+
+def productivity_zones(frame):
+    x = frame.dropna(subset=["latitude", "longitude", "chla"]).copy()
+    x = x[x["chla"] > 0].copy()
+    if x.empty:
+        return pd.DataFrame(), np.nan, np.nan
+    p75 = float(x["chla"].quantile(0.75))
+    p90 = float(x["chla"].quantile(0.90))
+    x["productivity_band"] = np.select(
+        [x["chla"] >= p90, x["chla"] >= p75],
+        ["Very high signal", "High signal"],
+        default="Background field",
+    )
+    return x, p75, p90
+
+
+def chlorophyll_fronts(frame):
+    x = frame.dropna(subset=["latitude", "longitude", "chla"]).copy()
+    if x.empty:
+        return pd.DataFrame()
+    # OCM grid is treated as a regular field for a lightweight local-gradient screen.
+    lat_vals = np.sort(x["latitude"].unique())
+    lon_vals = np.sort(x["longitude"].unique())
+    if len(lat_vals) < 3 or len(lon_vals) < 3:
+        return pd.DataFrame()
+    lat_step = float(np.median(np.diff(lat_vals)))
+    lon_step = float(np.median(np.diff(lon_vals)))
+    if not np.isfinite(lat_step) or not np.isfinite(lon_step) or lat_step <= 0 or lon_step <= 0:
+        return pd.DataFrame()
+
+    base = x[["latitude", "longitude", "chla"]].copy()
+    north = base.rename(columns={"latitude":"latitude_n", "chla":"chla_n"})
+    north["latitude"] = north["latitude_n"] - lat_step
+    east = base.rename(columns={"longitude":"longitude_e", "chla":"chla_e"})
+    east["longitude"] = east["longitude_e"] - lon_step
+
+    out = base.merge(north[["latitude", "longitude", "chla_n"]], on=["latitude", "longitude"], how="left")
+    out = out.merge(east[["latitude", "longitude", "chla_e"]], on=["latitude", "longitude"], how="left")
+    out["gradient"] = np.sqrt(
+        ((out["chla"] - out["chla_n"]) / lat_step) ** 2
+        + ((out["chla"] - out["chla_e"]) / lon_step) ** 2
+    )
+    out = out.replace([np.inf, -np.inf], np.nan).dropna(subset=["gradient"])
+    if out.empty:
+        return out
+    cutoff = float(out["gradient"].quantile(0.99))
+    out = out[out["gradient"] >= cutoff].copy()
+    out["front_rank"] = out["gradient"].rank(method="first", ascending=False).astype(int)
+    return out.sort_values("gradient", ascending=False)
+
+
+def seasonal_summary(hist):
+    if hist is None or hist.empty:
+        return pd.DataFrame()
+    x = hist.copy()
+    x["month"] = x["date"].dt.month
+    out = x.groupby("month", as_index=False).agg(
+        mean_chla=("chla", "mean"),
+        max_chla=("chla", "max"),
+        risk_rate=("risk", "mean"),
+        observations=("chla", "size"),
+    )
+    out["risk_rate"] *= 100
+    out["Month"] = pd.to_datetime(out["month"], format="%m").dt.strftime("%b")
+    return out
+
+def go_to(page):
+    st.session_state.page = page
+    st.rerun()
+
+
+# ============================================================
+# HEADER / NAVIGATION
+# ============================================================
+
+st.markdown(
+    f'<div class="topbar"><div class="brand"><div class="brandmark">≈</div><div><div class="brandtitle">BloomDetect AI</div><div class="brandsub">Coastal & Ocean Intelligence · EOS-06 OCM-3</div></div></div><div class="topmeta">Latest processed field<strong>{fmt_date(latest_date)}</strong></div></div>',
+    unsafe_allow_html=True,
+)
+
+if st.session_state.get("page") not in {"home", "map", "location", "insights", "data"}:
+    st.session_state.page = "home"
+
+pages = [("home", "⌂ Home"), ("map", "◉ Risk Map"), ("location", "⌖ Location"), ("insights", "▥ Insights"), ("data", "↓ Data")]
+nav = st.columns(5)
+for col, (key, label) in zip(nav, pages):
+    with col:
+        if st.button(label, key="nav_" + key, width="stretch", type="primary" if st.session_state.page == key else "secondary"):
+            go_to(key)
+
+# ============================================================
+# HOME
+# ============================================================
+
+if st.session_state.page == "home":
+    st.markdown(
+        '''<section class="hero"><div class="hero-content"><div class="kicker">EOS-06 · OCM-3 · Satellite intelligence</div><h1>Read the ocean signal.</h1><p>BloomDetect AI screens satellite-derived chlorophyll-a and temporal behaviour to surface locations whose patterns may deserve closer investigation. It is an early-warning support system, not a claim of confirmed harmful algal bloom detection.</p><div class="chips"><span class="chip">🌊 Ocean colour</span><span class="chip">🛰 EOS-06 OCM-3</span><span class="chip">📍 Spatial screening</span><span class="chip">⚠ Potential bloom-risk signal</span></div></div></section>''',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric("Processed cells", f"{len(latest):,}", "latest processed field")
+    with c2: metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
+    with c3: metric("Risk share", f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%", "of processed cells")
+    with c4: metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
+
+    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+    left, right = st.columns([1.05, .95], gap="large")
+    with left:
+        card(
+            "From satellite observation to investigation support",
+            "BloomDetect combines current chlorophyll-a with temporal context such as the previous observation, historical baseline and recent behaviour. The resulting flag is a potential bloom-risk screening signal.",
+            '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
+        )
+        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><div class="card-title">Beyond bloom detection</div><div class="card-copy">The project now adds four research lenses inside <b>Insights</b>: <b>Productivity Zones</b>, <b>Chl-a Fronts</b>, <b>Seasonal Intelligence</b>, and <b>Marine Resource Support</b>. They reuse the satellite field for different real-world decisions instead of creating four copies of the same chart.</div></div>', unsafe_allow_html=True)
+    with right:
+        if IMAGE_FILE.exists():
+            st.image(str(IMAGE_FILE), width="stretch", caption="Satellite ocean-colour observations supporting bloom-risk investigation")
+        else:
+            card("Project visual", "The project illustration is not present beside app.py, so no substitute image is being invented.")
+
+    if history_available:
+        first_hist = history.date.min()
+        last_hist = history.date.max()
+        st.markdown(f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>', unsafe_allow_html=True)
+    footer()
+
+# ============================================================
+# RISK MAP
+# ============================================================
+
+elif st.session_state.page == "map":
+    page_head(
+        "01 · SPATIAL INTELLIGENCE",
+        "See the field, then change the lens.",
+        "Explore the study window across the available observation timeline. Blue shows the processed ocean field, green highlights higher concentration zones, and red marks individual potential-risk screening cells.",
+    )
+
+    if history_available:
+        dates = sorted(history.date.dt.normalize().dropna().unique())
+        date_values = [pd.Timestamp(d).date() for d in dates]
+        selected_date = st.select_slider(
+            "Observation date",
+            options=date_values,
+            value=date_values[-1],
+            format_func=lambda x: pd.Timestamp(x).strftime("%d %b %Y"),
+            key="timeline_date",
+        )
+        selected_ts = pd.Timestamp(selected_date)
+        selected = history[history.date.dt.normalize() == selected_ts.normalize()].copy()
+
+        # The history file is compact context. The final date can be compared with the actual latest field.
+        is_latest = selected_ts.normalize() == latest_date.normalize()
+        if is_latest:
+            processed_count = len(latest)
+            risk_count = len(risk_latest)
+            risk_share = risk_count / processed_count * 100 if processed_count else 0
+            map_fig = latest_map(latest, "Screening")
+            timeline_note = "Latest field uses the stored final screening output."
+        else:
+            processed_count = len(selected)
+            risk_count = int(selected.risk.sum())
+            risk_share = risk_count / processed_count * 100 if processed_count else 0
+            map_fig = history_map(selected)
+            timeline_note = "Earlier dates use compact historical Chl-a screening, not another ML prediction."
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: metric("Selected date", fmt_date(selected_ts), "observation")
+        with c2: metric("Processed cells", f"{processed_count:,}", "selected field")
+        with c3: metric("Potential-risk", f"{risk_count:,}", "screening cells")
+        with c4: metric("Risk share", f"{risk_share:.2f}%", "selected field")
+
+        st.markdown('<div class="map-shell"><div class="map-header"><strong>Indian Ocean · Arabian Sea · Bay of Bengal</strong><span>Blue processed field · green concentration · red potential-risk screening</span></div>', unsafe_allow_html=True)
+        st.plotly_chart(map_fig, width="stretch", config={"displaylogo": False, "scrollZoom": True, "responsive": True})
+        st.markdown('<div class="legend"><span><i style="background:#2387aa"></i>Processed ocean field</span><span><i style="background:#22a878"></i>Higher concentration</span><span><i style="background:#e84e5d"></i>Potential-risk cell</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="callout"><strong>How to read this:</strong> {timeline_note} Red cells are screening results, not confirmed harmful algal blooms.</div>', unsafe_allow_html=True)
+
+    else:
+        st.info("The compact history file is not present in this deployment. The latest processed field is still available below. No fake timeline is being created.")
+        view = st.selectbox("Map detail", ["Screening", "Chlorophyll-a", "Recent change", "Historical anomaly"], key="map_view")
+        fig = latest_map(latest, view)
+        if fig is not None:
+            st.markdown('<div class="map-shell"><div class="map-header"><strong>Indian Ocean · Arabian Sea · Bay of Bengal</strong><span>Study window: 40°S–30°N · 20°E–120°E</span></div>', unsafe_allow_html=True)
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True, "responsive": True})
+            st.markdown('<div class="legend"><span><i style="background:#2387aa"></i>Processed ocean field</span><span><i style="background:#e84e5d"></i>Potential-risk cell</span></div></div>', unsafe_allow_html=True)
+
+    footer()
+
+# ============================================================
+# LOCATION
+# ============================================================
+
+elif st.session_state.page == "location":
+    page_head(
+        "02 · LOCATION INTELLIGENCE",
+        "Interrogate one coordinate.",
+        "Enter a real coordinate inside the study window. BloomDetect keeps your input separate from the nearest valid processed ocean cell and reports only evidence available in the dataset.",
+    )
+
+    left, right = st.columns([.78, 1.22], gap="large")
+    with left:
+        card("Your input", "Use decimal degrees. No coordinate is pre-filled, because pretending a random coordinate is meaningful is not analysis.")
+        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=None, step=0.01, format="%.4f", key="lookup_lat")
+        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=None, step=0.01, format="%.4f", key="lookup_lon")
+        check = st.button("Check coordinate", width="stretch", type="primary")
+        st.markdown('<div class="small-muted">Study window: −40° to 30° latitude · 20° to 120° longitude</div>', unsafe_allow_html=True)
+
+    with right:
+        if not check:
+            card("Nearest processed ocean cell", "Enter both coordinates and run the lookup. Results will appear here without inventing a default location.")
+        elif lat is None or lon is None:
+            st.warning("Enter both latitude and longitude before checking the coordinate.")
+        elif not (LAT_MIN <= float(lat) <= LAT_MAX and LON_MIN <= float(lon) <= LON_MAX):
+            st.error(f"This coordinate is outside the study window: {LAT_MIN}° to {LAT_MAX}° latitude and {LON_MIN}° to {LON_MAX}° longitude.")
+        else:
+            row, separation = nearest_ocean_cell(float(lat), float(lon))
+            if row is None:
+                st.error("No valid processed ocean cell is available for this lookup.")
+            else:
+                flagged = bool(row.risk_flag)
+                card("Nearest processed ocean cell", f"<b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>Approximate angular separation: {separation:.2f}°")
+                a, b = st.columns(2)
+                with a: metric("Observation date", fmt_date(row.date), "nearest valid cell")
+                with b: metric("Chlorophyll-a", fmt_num(row.chla), "processed observation")
+                c, d = st.columns(2)
+                with c:
+                    prob = row.get("risk_probability", np.nan)
+                    metric("Screening probability", f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable", "stored model output")
+                with d: metric("Screening status", "Potential risk" if flagged else "Not flagged", "latest field")
+
+                if flagged:
+                    st.markdown('<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>This processed cell is included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>This valid processed ocean cell is not included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+
+                st.markdown('<div class="section-label">Supporting signals</div>', unsafe_allow_html=True)
+                values = [
+                    ("Current Chl-a", row.get("chla", np.nan)),
+                    ("Historical baseline", row.get("historical_baseline", np.nan)),
+                    ("Anomaly", row.get("chla_anomaly", np.nan)),
+                    ("Recent change", row.get("chla_change", np.nan)),
+                ]
+                cols = st.columns(4)
+                for col, (label, value) in zip(cols, values):
+                    with col:
+                        metric(label, fmt_num(value), "available signal")
+
+                # Only show a history chart when actual history exists for this coordinate.
+                if history_available:
+                    hlat = float(row.latitude)
+                    hlon = float(row.longitude)
+                    same = history[
+                        ((history.lat_bin - hlat).abs() <= 1.0)
+                        & ((history.lon_bin - hlon).abs() <= 1.0)
+                    ].copy()
+                    if not same.empty:
+                        trend = same.groupby("date", as_index=False).chla.mean().sort_values("date")
+                        if len(trend) >= 2:
+                            st.markdown('<div class="section-label">Location history</div>', unsafe_allow_html=True)
+                            fig = px.line(trend, x="date", y="chla", markers=True)
+                            fig.update_layout(
+                                height=320, margin=dict(l=50, r=20, t=20, b=50),
+                                paper_bgcolor="white", plot_bgcolor="white",
+                                font=dict(family="DM Sans", color="#0b3e49"),
+                                xaxis_title="Observation date", yaxis_title="Mean Chl-a",
+                            )
+                            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+                st.markdown('<div class="callout"><strong>Scientific boundary:</strong> this lookup is a satellite screening aid. It cannot independently establish harmfulness, species identity, toxin presence or ecological impact.</div>', unsafe_allow_html=True)
+
+    footer()
+
+# ============================================================
+# INSIGHTS
+# ============================================================
+
+elif st.session_state.page == "insights":
+    page_head(
+        "03 · OCEAN INTELLIGENCE",
+        "Find the patterns that matter.",
+        "BloomDetect now goes beyond a single bloom-risk flag: the same satellite field is used to screen productivity zones, chlorophyll fronts, seasonal behaviour and marine-resource investigation areas.",
+    )
+
+    change_series = pd.to_numeric(latest.get("chla_change", pd.Series(index=latest.index, dtype=float)), errors="coerce")
+    anomaly_series = pd.to_numeric(latest.get("chla_anomaly", pd.Series(index=latest.index, dtype=float)), errors="coerce")
+    positive_change = int((change_series > 0).sum())
+    anomaly_count = int((anomaly_series >= ANOMALY_THRESHOLD).sum())
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric("Potential-risk cells", f"{len(risk_latest):,}", "latest screening")
+    with c2: metric("Positive Chl-a change", f"{positive_change:,}", "change > 0")
+    with c3: metric("Anomalous cells", f"{anomaly_count:,}", f"anomaly ≥ {ANOMALY_THRESHOLD:.4f}")
+    with c4: metric("Normal screening field", f"{max(len(latest)-len(risk_latest),0):,}", "not currently flagged")
+
+    st.markdown('<div class="section-label">Spatial screening</div>', unsafe_allow_html=True)
+    if not risk_latest.empty:
+        zone = risk_latest.copy()
+        zone["lat_zone"] = np.floor(zone.latitude / 5) * 5
+        zone["lon_zone"] = np.floor(zone.longitude / 5) * 5
+        zone = zone.groupby(["lat_zone", "lon_zone"], as_index=False).size().rename(columns={"size": "cells"})
+        zone["zone"] = zone.apply(lambda r: f"{r.lat_zone:.0f}°–{r.lat_zone+5:.0f}° · {r.lon_zone:.0f}°–{r.lon_zone+5:.0f}°", axis=1)
+        zone = zone.nlargest(10, "cells").sort_values("cells")
+        fig = px.bar(zone, x="cells", y="zone", orientation="h", text="cells")
+        fig.update_traces(marker_color="#e84e5d", textposition="outside")
+        fig.update_layout(height=430, margin=dict(l=150, r=35, t=20, b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white", xaxis_title="Potential-risk screening cells", yaxis_title="")
+        st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+    # ========================================================
+    # NEW APPLICATION LAYER
+    # ========================================================
+    st.markdown('<div class="section-label">New ocean applications</div>', unsafe_allow_html=True)
+    st.markdown("### One dataset. Four different decisions.")
+    st.caption("These are derived analytical views, not additional satellite products. They use the current OCM-3 chlorophyll field and the compact project history.")
+
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🌱 Productivity Zones",
+        "〰 Chl-a Fronts",
+        "📅 Seasonal Intelligence",
+        "🎣 Marine Resource Support",
+    ])
+
+    with tab1:
+        prod, p75, p90 = productivity_zones(latest)
+        if prod.empty:
+            st.info("No positive chlorophyll observations are available for productivity screening.")
+        else:
+            high = prod[prod["chla"] >= p75].copy()
+            very = prod[prod["chla"] >= p90].copy()
+            a,b,c = st.columns(3)
+            with a: metric("High-signal cells", f"{len(high):,}", "top 25% Chl-a")
+            with b: metric("Very-high cells", f"{len(very):,}", "top 10% Chl-a")
+            with c: metric("High-signal threshold", fmt_num(p75), "dataset percentile")
+
+            plot = prod[prod["chla"] >= p75].copy()
+            if len(plot) > 12000:
+                plot = plot.nlargest(12000, "chla")
+            fig = go.Figure(go.Scattergeo(
+                lon=plot.longitude, lat=plot.latitude, mode="markers",
+                marker=dict(size=5, color=plot.chla, colorscale="YlGn", opacity=.72, colorbar=dict(title="Chl-a")),
+                customdata=np.c_[plot.chla],
+                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<extra></extra>",
+                name="High-signal productivity zone",
+            ))
+            fig.update_geos(**geo_style())
+            fig.update_layout(height=500, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor="#e4f7f8", plot_bgcolor="#e4f7f8")
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+            st.markdown('<div class="callout"><strong>Use:</strong> high-signal zones can support marine productivity research and prioritise areas for ecological or fisheries investigation. They do <b>not</b> mean fish abundance is high and do not replace fishery surveys.</div>', unsafe_allow_html=True)
+
+    with tab2:
+        fronts = chlorophyll_fronts(latest)
+        if fronts.empty:
+            st.info("A stable local Chl-a gradient could not be calculated from the current field.")
+        else:
+            a,b,c = st.columns(3)
+            with a: metric("Detected front cells", f"{len(fronts):,}", "top 1% local gradient")
+            with b: metric("Strongest gradient", fmt_num(fronts.gradient.iloc[0]), "relative Chl-a / degree")
+            with c: metric("Grid step", f"~{abs(float(np.median(np.diff(np.sort(latest.latitude.unique()))))):.2f}°", "latitude spacing")
+            fp = fronts.head(3000)
+            fig = go.Figure(go.Scattergeo(
+                lon=fp.longitude, lat=fp.latitude, mode="markers",
+                marker=dict(size=5, color=fp.gradient, colorscale="Turbo", opacity=.8, colorbar=dict(title="Gradient")),
+                customdata=np.c_[fp.gradient, fp.chla],
+                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Gradient %{customdata[0]:.4f}<br>Chl-a %{customdata[1]:.4f}<extra></extra>",
+                name="Chl-a front candidates",
+            ))
+            fig.update_geos(**geo_style())
+            fig.update_layout(height=500, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor="#e4f7f8", plot_bgcolor="#e4f7f8")
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+            top = fronts.head(10).copy()
+            top["Location"] = top.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1)
+            st.dataframe(top[["Location","chla","gradient"]].rename(columns={"chla":"Chl-a","gradient":"Relative gradient"}).round(4), width="stretch", hide_index=True)
+            st.markdown('<div class="callout"><strong>Why this matters:</strong> sharp Chl-a transitions can indicate boundaries between different water masses or productivity regimes. This is a screening of the satellite field, not a direct current or fish-front measurement.</div>', unsafe_allow_html=True)
+
+    with tab3:
+        ss = seasonal_summary(history) if history_available else pd.DataFrame()
+        if ss.empty:
+            st.info("Seasonal intelligence needs the compact historical observation layer.")
+        else:
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=ss.Month, y=ss.mean_chla, name="Mean Chl-a", marker_color="#2387aa"))
+            fig.add_trace(go.Scatter(x=ss.Month, y=ss.risk_rate, name="Risk-screening rate (%)", yaxis="y2", mode="lines+markers", line=dict(color="#e84e5d", width=3)))
+            fig.update_layout(
+                height=420, margin=dict(l=55,r=65,t=20,b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white",
+                xaxis_title="Month", yaxis_title="Mean Chl-a",
+                yaxis2=dict(title="Risk-screening rate (%)", overlaying="y", side="right"),
+                legend=dict(orientation="h", y=1.08, x=0),
+            )
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+            best = ss.sort_values("mean_chla", ascending=False).iloc[0]
+            risk_month = ss.sort_values("risk_rate", ascending=False).iloc[0]
+            st.markdown(f'<div class="callout"><strong>Seasonal signal:</strong> the highest average Chl-a month in the available history is <b>{best.Month}</b>, while the highest screening-rate month is <b>{risk_month.Month}</b>. This helps distinguish recurring seasonal behaviour from isolated observations.</div>', unsafe_allow_html=True)
+
+    with tab4:
+        prod, p75, p90 = productivity_zones(latest)
+        if prod.empty:
+            st.info("Marine-resource support cannot be calculated without positive Chl-a observations.")
+        else:
+            candidate = prod[prod["chla"] >= p75].copy()
+            candidate["risk_flag"] = candidate["risk_flag"].astype(bool)
+            # Prefer high productivity with no current risk flag as a conservative investigation shortlist.
+            candidate["Support class"] = np.where(candidate.risk_flag, "High productivity · also flagged", "High productivity · not flagged")
+            summary = candidate.groupby("Support class", as_index=False).agg(
+                Cells=("chla","size"), Mean_Chl_a=("chla","mean"), Max_Chl_a=("chla","max")
+            )
+            summary["Mean_Chl_a"] = summary["Mean_Chl_a"].round(4)
+            summary["Max_Chl_a"] = summary["Max_Chl_a"].round(4)
+            st.dataframe(summary.rename(columns={"Mean_Chl_a":"Mean Chl-a","Max_Chl_a":"Max Chl-a"}), width="stretch", hide_index=True)
+            good = candidate[~candidate.risk_flag].nlargest(12, "chla").copy()
+            if not good.empty:
+                good["Location"] = good.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1)
+                st.markdown("#### High-productivity investigation shortlist")
+                st.dataframe(good[["Location","chla"]].rename(columns={"chla":"Chl-a"}).round(4), width="stretch", hide_index=True)
+            st.markdown('<div class="callout"><strong>Application:</strong> this shortlist highlights ocean cells with relatively high satellite-observed productivity signal while separating cells already flagged by BloomDetect. It is a <b>marine-resource investigation aid</b>, not a fish-location predictor.</div>', unsafe_allow_html=True)
+
+    # Existing evidence charts
+    st.markdown('<div class="section-label">Current field evidence</div>', unsafe_allow_html=True)
+    a, b = st.columns(2, gap="large")
+    with a:
+        card("Chl-a distribution", "Distribution of valid positive chlorophyll-a observations in the latest field.")
+        valid = latest.loc[latest.chla > 0, "chla"].dropna()
+        if not valid.empty:
+            fig = px.histogram(valid, nbins=45)
+            fig.update_traces(marker_color="#2387aa")
+            fig.update_layout(height=340, margin=dict(l=55,r=15,t=15,b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chlorophyll-a", yaxis_title="Cells")
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+    with b:
+        card("Recent Chl-a change", "The distribution of change relative to the previous observation, where that field exists.")
+        change = change_series.dropna()
+        if not change.empty:
+            fig = px.histogram(change, nbins=45)
+            fig.update_traces(marker_color="#22a878")
+            fig.add_vline(x=CHANGE_THRESHOLD, line_dash="dash", line_color="#d8952e")
+            fig.update_layout(height=340, margin=dict(l=55,r=15,t=15,b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chl-a change", yaxis_title="Cells")
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+    st.markdown('<div class="section-label">Current screening priorities</div>', unsafe_allow_html=True)
+    if not risk_latest.empty:
+        sort_col = "risk_probability" if "risk_probability" in risk_latest.columns else "chla"
+        priority = risk_latest.sort_values(sort_col, ascending=False).head(12).copy()
+        priority["Location"] = priority.apply(lambda r: f"{r.latitude:.3f}°, {r.longitude:.3f}°", axis=1)
+        table = pd.DataFrame({
+            "Location": priority.Location,
+            "Chl-a": priority.chla.round(4),
+            "Risk probability": priority["risk_probability"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "Unavailable") if "risk_probability" in priority else "Unavailable",
+            "Anomaly": priority["chla_anomaly"].round(4) if "chla_anomaly" in priority else np.nan,
+            "Recent change": priority["chla_change"].round(4) if "chla_change" in priority else np.nan,
+        })
+        st.dataframe(table, width="stretch", hide_index=True)
+    else:
+        st.info("No current screening priorities are available in the latest field.")
+
+    st.markdown('<div class="callout"><strong>Scientific boundary:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins and do not confirm a harmful algal bloom.</div>', unsafe_allow_html=True)
+    footer()
+
+# ============================================================
+# DATA
+# ============================================================
+
+elif st.session_state.page == "data":
+    page_head(
+        "04 · DATA & RESEARCH",
+        "The evidence behind the dashboard.",
+        "Source, coverage, processing scope and downloadable outputs live here. The other pages stay focused on analysis rather than repeating dataset documentation.",
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric("Product", "E06OCM_L4_AC", "EOS-06 / OCM-3")
+    with c2: metric("Grid", "0.25°", "latest processed field")
+    with c3: metric("Coverage", f"{fmt_date(df.date.min())} → {fmt_date(latest_date)}", "available prediction records")
+    with c4: metric("Latest field", f"{len(latest):,}", fmt_date(latest_date))
+
+    st.markdown('<div class="section-label">Source product</div>', unsafe_allow_html=True)
+    card(
+        "EOS-06 / Oceansat-3 OCM-3 Level-4 analysed chlorophyll-a",
+        "The dashboard uses the E06OCM_L4_AC satellite-derived ocean-colour product. The current application layer combines chlorophyll-a with temporal signals already stored in the processed project data.",
+        '<div class="callout"><strong>Study window:</strong> approximately 20°E–120°E longitude and 40°S–30°N latitude for the dashboard spatial view.</div>',
+    )
+
+    st.markdown('<div class="section-label">Project outputs</div>', unsafe_allow_html=True)
+    d1, d2 = st.columns(2, gap="large")
+    with d1:
+        card("Latest observations", "All valid observations from the latest processed field.")
+        st.download_button(
+            "Download latest observations",
+            data=latest.to_csv(index=False).encode("utf-8"),
+            file_name="bloomdetect_latest_observations.csv",
+            mime="text/csv",
+            width="stretch",
+        )
+    with d2:
+        card("Potential-risk shortlist", "Only cells currently included in the latest potential-risk screening output.")
+        st.download_button(
+            "Download potential-risk locations",
+            data=risk_latest.to_csv(index=False).encode("utf-8"),
+            file_name="bloomdetect_potential_risk_locations.csv",
+            mime="text/csv",
+            width="stretch",
+        )
+
+    st.markdown('<div class="section-label">Model evidence</div>', unsafe_allow_html=True)
+    model = pd.DataFrame({
+        "Metric": ["Accuracy", "Precision", "Recall", "F1", "ROC-AUC"],
+        "Final Decision Tree": [0.9993, 0.8331, 0.9988, 0.9085, 0.9997],
+    })
+    st.dataframe(model, width="stretch", hide_index=True)
+    st.markdown('<div class="callout"><strong>Interpretation:</strong> these metrics evaluate the project’s proxy screening target derived from chlorophyll-a temporal behaviour. They are not field-validated HAB detection accuracy. Satellite observations cannot independently establish species identity or toxin presence.</div>', unsafe_allow_html=True)
+
+    if history_available:
+        st.markdown('<div class="section-label">Historical support layer</div>', unsafe_allow_html=True)
+        card("Compact observation history", f"The Risk Map timeline is backed by <b>{history_name}</b>. It is an aggregated historical screening layer, not a second ML model. Available dates: {fmt_date(history.date.min())} to {fmt_date(history.date.max())}.")
+
+    footer()
