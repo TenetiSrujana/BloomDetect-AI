@@ -129,7 +129,7 @@ html,body,[data-testid="stAppViewContainer"]{background:var(--bg)!important;colo
 .map-wrap{background:#dff7f8;border:1.5px solid #91cbd1;border-radius:20px;padding:4px;box-shadow:0 12px 30px rgba(9,80,94,.07);overflow:hidden}.map-head{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;align-items:center}.map-head b{font-size:.79rem;color:#174b56}.map-head span{font-size:.64rem;color:#6b8b92}.legend{display:flex;gap:12px;flex-wrap:wrap;padding:9px 11px;color:#54757c;font-size:.69rem}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-1px;margin-right:4px}
 .signal-title{font:800 .61rem Manrope;letter-spacing:.15em;text-transform:uppercase;color:#6d8c93;margin:17px 0 7px}.signal{padding:13px;border:1.5px solid #b9dfe2;border-radius:15px;background:#fff}.signal-label{font-size:.64rem;color:#78959b}.signal-value{font:800 1.08rem Manrope;color:#164a55;margin-top:3px}.signal-sub{font-size:.66rem;color:#78959b;margin-top:2px}
 .status{padding:14px;border-radius:15px;border:2px solid;margin-top:12px}.status-risk{background:#fff0f2;border-color:#f06a78;color:#9e2d3c}.status-ok{background:#eafaf4;border-color:#49b995;color:#176f58}.status-title{font:800 .86rem Manrope;margin-bottom:3px}
-.stNumberInput input{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stSelectbox div[data-baseweb="select"]>div{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stPlotlyChart{border-radius:16px;overflow:hidden}
+.stNumberInput input{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important;color:#123f49!important;font-weight:700!important}.stNumberInput label,.stNumberInput label p{color:#174b56!important;font-weight:800!important;font-size:.76rem!important;opacity:1!important}.stNumberInput [data-baseweb="input"]{background:#fff!important}.stSelectbox div[data-baseweb="select"]>div{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stPlotlyChart{border-radius:16px;overflow:hidden}
 .footer{border-top:1px solid #d5ebed;margin-top:28px;padding-top:12px;color:#76959b;font-size:.63rem}
 .home-spacer{height:4px}
 @media(max-width:900px){.story{grid-template-columns:1fr}}@media(max-width:620px){.block-container{padding:12px 12px 35px!important}.brand{padding:10px}.latest{display:none}.hero{padding:34px 23px;min-height:300px}.hero h1{font-size:2.85rem}}
@@ -504,68 +504,165 @@ elif st.session_state.page == "location":
     heading(
         "02 · LOCATION INTELLIGENCE",
         "Check one coordinate with clean evidence.",
-        "Enter a latitude and longitude. BloomDetect separates your input from the nearest valid processed ocean cell, so land and zero-value observations are not presented as meaningful ocean results.",
+        "Enter a latitude and longitude. BloomDetect finds the nearest valid processed ocean cell and keeps your entered coordinate separate from the satellite observation.",
     )
 
-    left,right = st.columns([.75,1.25], gap="large")
-    with left:
-        st.markdown('<div class="card"><h3>Your input</h3><p>Enter decimal degrees. Example: 17.38, 78.49.</p></div>', unsafe_allow_html=True)
-        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=17.38, step=0.01, format="%.4f", key="input_lat")
-        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=78.49, step=0.01, format="%.4f", key="input_lon")
-        check = st.button("🔎 Check location", width="stretch", type="primary")
+    left, right = st.columns([0.72, 1.28], gap="large")
 
-    if check:
-        if not (LAT_MIN <= float(lat) <= LAT_MAX and LON_MIN <= float(lon) <= LON_MAX):
-            with right:
-                st.warning(f"The coordinate is outside the BloomDetect study window ({LAT_MIN}° to {LAT_MAX}° latitude, {LON_MIN}° to {LON_MAX}° longitude).")
+    # -------------------------
+    # INPUT PANEL
+    # -------------------------
+    with left:
+        st.markdown(
+            '<div class="card"><div class="kicker">YOUR INPUT</div>'
+            '<h3>Choose a coordinate</h3>'
+            '<p>Use decimal degrees. Example: 17.38, 78.49.</p></div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown('<div style="margin-top:14px;font-weight:800;color:#174b56;font-size:.78rem">Latitude</div>', unsafe_allow_html=True)
+        lat = st.number_input(
+            "Latitude",
+            min_value=-90.0,
+            max_value=90.0,
+            value=17.38,
+            step=0.01,
+            format="%.4f",
+            key="input_lat",
+            label_visibility="collapsed",
+        )
+
+        st.markdown('<div style="margin-top:13px;font-weight:800;color:#174b56;font-size:.78rem">Longitude</div>', unsafe_allow_html=True)
+        lon = st.number_input(
+            "Longitude",
+            min_value=-180.0,
+            max_value=180.0,
+            value=78.49,
+            step=0.01,
+            format="%.4f",
+            key="input_lon",
+            label_visibility="collapsed",
+        )
+
+        st.markdown('<div style="height:5px"></div>', unsafe_allow_html=True)
+        check = st.button("🔎  Check location", width="stretch", type="primary")
+
+        st.markdown(
+            '<div class="note" style="margin-top:12px"><b>Study window:</b> '
+            f'{LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude · {LON_MIN:.0f}°E to {LON_MAX:.0f}°E longitude.</div>',
+            unsafe_allow_html=True,
+        )
+
+    # -------------------------
+    # RESULT PANEL
+    # -------------------------
+    with right:
+        if not check:
+            st.markdown(
+                '<div class="card" style="min-height:292px">'
+                '<div class="kicker">NEAREST PROCESSED OCEAN CELL</div>'
+                '<h3>Waiting for a coordinate</h3>'
+                '<p>Press <b>Check location</b> to find the nearest valid satellite observation.</p>'
+                '<div class="note" style="margin-top:18px">'
+                '<b>What is checked?</b><br>'
+                'Only valid ocean observations with positive Chl-a values are considered. '
+                'Land and zero-value cells are excluded.'
+                '</div></div>',
+                unsafe_allow_html=True,
+            )
         else:
-            row, distance_deg = nearest_valid(float(lat), float(lon))
-            if row is None:
-                with right:
-                    st.error("No valid processed ocean cells are available for this lookup.")
+            lat_f, lon_f = float(lat), float(lon)
+
+            if not (LAT_MIN <= lat_f <= LAT_MAX and LON_MIN <= lon_f <= LON_MAX):
+                st.error(
+                    f"This coordinate is outside the BloomDetect study window "
+                    f"({LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude, "
+                    f"{LON_MIN:.0f}°E to {LON_MAX:.0f}°E longitude)."
+                )
             else:
-                flagged = bool(row["risk_flag"])
-                with right:
+                row, distance_deg = nearest_valid(lat_f, lon_f)
+
+                if row is None:
+                    st.error("No valid processed ocean cell is available for this coordinate.")
+                else:
+                    flagged = bool(row["risk_flag"])
+                    prob = row.get("risk_probability", np.nan)
+                    prob_text = f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable"
+                    status_text = "Potential bloom risk" if flagged else "Not flagged"
+
                     st.markdown(
-                        f'<div class="card"><div class="kicker">NEAREST VALID PROCESSED OCEAN CELL</div><h3>{row["latitude"]:.4f}° · {row["longitude"]:.4f}°</h3><p>Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>Approx. angular separation: {distance_deg:.2f}°</p></div>',
+                        f'<div class="card">'
+                        f'<div class="kicker">NEAREST PROCESSED OCEAN CELL</div>'
+                        f'<h3 style="font-size:1.45rem">{float(row["latitude"]):.4f}° · {float(row["longitude"]):.4f}°</h3>'
+                        f'<p><b>Your input:</b> {lat_f:.4f}° · {lon_f:.4f}°<br>'
+                        f'<b>Approx. separation:</b> {distance_deg:.2f}°</p>'
+                        f'</div>',
                         unsafe_allow_html=True,
                     )
 
-                    r1,r2 = st.columns(2)
+                    r1, r2 = st.columns(2, gap="medium")
                     with r1:
-                        st.markdown(f'<div class="signal"><div class="signal-label">Observation date</div><div class="signal-value">{fmt_date(row["date"])}</div></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="signal"><div class="signal-label">Observation date</div>'
+                            f'<div class="signal-value">{fmt_date(row["date"])}</div></div>',
+                            unsafe_allow_html=True,
+                        )
                     with r2:
-                        st.markdown(f'<div class="signal"><div class="signal-label">Chlorophyll-a</div><div class="signal-value">{fmt_num(row["chla"])}</div></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="signal"><div class="signal-label">Chlorophyll-a</div>'
+                            f'<div class="signal-value">{fmt_num(row["chla"])}</div></div>',
+                            unsafe_allow_html=True,
+                        )
 
-                    r3,r4 = st.columns(2)
+                    r3, r4 = st.columns(2, gap="medium")
                     with r3:
-                        prob = row.get("risk_probability", np.nan)
-                        prob_text = f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable"
-                        st.markdown(f'<div class="signal"><div class="signal-label">Risk probability</div><div class="signal-value">{prob_text}</div></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="signal"><div class="signal-label">Risk probability</div>'
+                            f'<div class="signal-value">{prob_text}</div></div>',
+                            unsafe_allow_html=True,
+                        )
                     with r4:
-                        st.markdown(f'<div class="signal"><div class="signal-label">Risk status</div><div class="signal-value">{"Potential risk" if flagged else "Not flagged"}</div></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="signal"><div class="signal-label">Screening status</div>'
+                            f'<div class="signal-value">{status_text}</div></div>',
+                            unsafe_allow_html=True,
+                        )
 
                     if flagged:
-                        st.markdown('<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>This processed cell is included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>'
+                            'This processed cell is included in the latest potential-risk screening output. '
+                            'This is not confirmation of a harmful algal bloom.</div>',
+                            unsafe_allow_html=True,
+                        )
                     else:
-                        st.markdown('<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>This valid processed ocean cell is not included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>'
+                            'This valid processed ocean cell is not included in the latest potential-risk screening output.</div>',
+                            unsafe_allow_html=True,
+                        )
 
-                    st.markdown('<div class="signal-title">Supporting signals</div>', unsafe_allow_html=True)
-                    s1,s2,s3,s4 = st.columns(4)
+                    st.markdown('<div class="signal-title">SUPPORTING SIGNALS</div>', unsafe_allow_html=True)
+                    s1, s2, s3, s4 = st.columns(4, gap="small")
                     vals = [
-                        ("Current Chl-a", row.get("chla",np.nan)),
-                        ("Historical baseline", row.get("historical_baseline",np.nan)),
-                        ("Anomaly", row.get("chla_anomaly",np.nan)),
-                        ("Recent change", row.get("chla_change",np.nan)),
+                        ("Current Chl-a", row.get("chla", np.nan)),
+                        ("Historical baseline", row.get("historical_baseline", np.nan)),
+                        ("Anomaly", row.get("chla_anomaly", np.nan)),
+                        ("Recent change", row.get("chla_change", np.nan)),
                     ]
-                    for c,(lab,val) in zip([s1,s2,s3,s4],vals):
+                    for c, (lab, val) in zip([s1, s2, s3, s4], vals):
                         with c:
-                            st.markdown(f'<div class="signal"><div class="signal-label">{lab}</div><div class="signal-value">{fmt_num(val)}</div></div>', unsafe_allow_html=True)
+                            st.markdown(
+                                f'<div class="signal"><div class="signal-label">{lab}</div>'
+                                f'<div class="signal-value">{fmt_num(val)}</div></div>',
+                                unsafe_allow_html=True,
+                            )
 
-                    st.markdown('<div class="note"><b>Interpretation:</b> this lookup reports the nearest valid processed satellite cell. It is a screening aid and does not establish a confirmed harmful algal bloom.</div>', unsafe_allow_html=True)
-    else:
-        with right:
-            st.markdown('<div class="card"><h3>Nearest processed ocean cell</h3><p>Press <b>Check location</b> to evaluate the coordinate. Land and zero-value cells are excluded from the result.</p><div class="note">Your input stays separate from the actual processed satellite cell. The dashboard only reports a valid ocean observation after the lookup is run.</div></div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<div class="note"><b>Interpretation:</b> the result is based on the nearest valid processed satellite cell. '
+                        'It is a screening aid, not a confirmed harmful algal bloom.</div>',
+                        unsafe_allow_html=True,
+                    )
 
     add_footer()
 
