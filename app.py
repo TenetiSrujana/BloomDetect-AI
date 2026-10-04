@@ -582,18 +582,25 @@ elif st.session_state.page == "map":
 # ============================================================
 
 elif st.session_state.page == "location":
+
     page_head(
         "02 · LOCATION INTELLIGENCE",
         "Interrogate one coordinate.",
         "Enter a real coordinate inside the study window. BloomDetect keeps your input separate from the nearest valid processed ocean cell and reports only evidence available in the dataset.",
     )
 
-    left, right = st.columns([.78, 1.22], gap="large")
+    # ========================================================
+    # INPUT + MAIN RESULT
+    # ========================================================
+
+    left, right = st.columns([0.82, 1.18], gap="large")
 
     # --------------------------------------------------------
-    # LEFT: COORDINATE INPUT
+    # LEFT COLUMN : INPUT
     # --------------------------------------------------------
+
     with left:
+
         card(
             "Your input",
             "Use decimal degrees. The fields start at the study-window boundary and can be edited before checking the coordinate."
@@ -626,29 +633,30 @@ elif st.session_state.page == "location":
         )
 
         st.markdown(
-            f'<div class="small-muted">'
-            f'Study window: {LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude · '
-            f'{LON_MIN:.0f}° to {LON_MAX:.0f}° longitude'
-            f'</div>',
+            f"""
+            <div class="small-muted">
+                Study window: {LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude
+                · {LON_MIN:.0f}° to {LON_MAX:.0f}° longitude
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
     # --------------------------------------------------------
-    # RIGHT: RESULT
+    # FIND COORDINATE
     # --------------------------------------------------------
-    with right:
 
-        if not check:
-            card(
-                "Nearest processed ocean cell",
-                "Enter a coordinate and run the lookup. Results will appear here using only processed dataset observations."
-            )
+    row = None
+    separation = None
+    lookup_error = None
 
-        elif not (
+    if check:
+
+        if not (
             LAT_MIN <= float(lat) <= LAT_MAX
             and LON_MIN <= float(lon) <= LON_MAX
         ):
-            st.error(
+            lookup_error = (
                 f"This coordinate is outside the study window: "
                 f"{LAT_MIN}° to {LAT_MAX}° latitude and "
                 f"{LON_MIN}° to {LON_MAX}° longitude."
@@ -661,291 +669,350 @@ elif st.session_state.page == "location":
             )
 
             if row is None:
-                st.error(
-                    "No valid processed ocean cell is available for this lookup."
+                lookup_error = (
+                    "No valid processed ocean cell is available "
+                    "for this lookup."
+                )
+
+    # --------------------------------------------------------
+    # RIGHT COLUMN : RESULT
+    # --------------------------------------------------------
+
+    with right:
+
+        if not check:
+
+            card(
+                "Nearest processed ocean cell",
+                "Enter a coordinate and run the lookup. Results will appear here using only processed dataset observations."
+            )
+
+        elif lookup_error:
+
+            st.error(lookup_error)
+
+        else:
+
+            flagged = bool(row.risk_flag)
+
+            card(
+                "Nearest processed ocean cell",
+                f"""
+                <b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>
+                Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>
+                Approximate angular separation: {separation:.2f}°
+                """
+            )
+
+            # ------------------------------------------------
+            # OBSERVATION DETAILS
+            # ------------------------------------------------
+
+            a, b = st.columns(2)
+
+            with a:
+                metric(
+                    "Observation date",
+                    fmt_date(row.date),
+                    "nearest valid cell"
+                )
+
+            with b:
+                metric(
+                    "Chlorophyll-a",
+                    fmt_num(row.chla),
+                    "processed observation"
+                )
+
+            c, d = st.columns(2)
+
+            with c:
+
+                prob = row.get(
+                    "risk_probability",
+                    np.nan
+                )
+
+                metric(
+                    "Screening probability",
+                    (
+                        f"{float(prob):.1%}"
+                        if pd.notna(prob)
+                        else "Unavailable"
+                    ),
+                    "stored model output"
+                )
+
+            with d:
+
+                metric(
+                    "Screening status",
+                    "Potential risk" if flagged else "Not flagged",
+                    "latest field"
+                )
+
+            # ------------------------------------------------
+            # SCREENING STATUS
+            # ------------------------------------------------
+
+            if flagged:
+
+                st.markdown(
+                    """
+                    <div class="status status-risk">
+                        <div class="status-title">
+                            🔴 Potential bloom-risk screening
+                        </div>
+                        This processed cell is included in the latest
+                        potential-risk screening output.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
                 )
 
             else:
-                flagged = bool(row.risk_flag)
 
-                # ------------------------------------------------
-                # NEAREST CELL
-                # ------------------------------------------------
-                card(
-                    "Nearest processed ocean cell",
-                    f"""
-                    <b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>
-                    Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>
-                    Approximate angular separation: {separation:.2f}°
+                st.markdown(
                     """
-                )
-
-                # ------------------------------------------------
-                # OBSERVATION DETAILS
-                # ------------------------------------------------
-                a, b = st.columns(2)
-
-                with a:
-                    metric(
-                        "Observation date",
-                        fmt_date(row.date),
-                        "nearest valid cell"
-                    )
-
-                with b:
-                    metric(
-                        "Chlorophyll-a",
-                        fmt_num(row.chla),
-                        "processed observation"
-                    )
-
-                c, d = st.columns(2)
-
-                with c:
-                    prob = row.get(
-                        "risk_probability",
-                        np.nan
-                    )
-
-                    metric(
-                        "Screening probability",
-                        (
-                            f"{float(prob):.1%}"
-                            if pd.notna(prob)
-                            else "Unavailable"
-                        ),
-                        "stored model output"
-                    )
-
-                with d:
-                    metric(
-                        "Screening status",
-                        "Potential risk" if flagged else "Not flagged",
-                        "latest field"
-                    )
-
-                # ------------------------------------------------
-                # SCREENING STATUS
-                # ------------------------------------------------
-                if flagged:
-                    st.markdown(
-                        '''
-                        <div class="status status-risk">
-                            <div class="status-title">
-                                🔴 Potential bloom-risk screening
-                            </div>
-                            This processed cell is included in the latest
-                            potential-risk screening output.
+                    <div class="status status-ok">
+                        <div class="status-title">
+                            🟢 Not flagged
                         </div>
-                        ''',
-                        unsafe_allow_html=True
-                    )
-
-                else:
-                    st.markdown(
-                        '''
-                        <div class="status status-ok">
-                            <div class="status-title">
-                                🟢 Not flagged
-                            </div>
-                            This valid processed ocean cell is not included
-                            in the latest potential-risk screening output.
-                        </div>
-                        ''',
-                        unsafe_allow_html=True
-                    )
-
-                # ------------------------------------------------
-                # SUPPORTING SIGNALS
-                # ------------------------------------------------
-                st.markdown(
-                    '<div class="section-label">Supporting signals</div>',
-                    unsafe_allow_html=True
-                )
-
-                values = [
-                    (
-                        "Current Chl-a",
-                        row.get("chla", np.nan)
-                    ),
-                    (
-                        "Historical baseline",
-                        row.get("historical_baseline", np.nan)
-                    ),
-                    (
-                        "Anomaly",
-                        row.get("chla_anomaly", np.nan)
-                    ),
-                    (
-                        "Recent change",
-                        row.get("chla_change", np.nan)
-                    ),
-                ]
-
-                cols = st.columns(4)
-
-                for col, (label, value) in zip(cols, values):
-                    with col:
-                        metric(
-                            label,
-                            fmt_num(value),
-                            "available signal"
-                        )
-
-                # ------------------------------------------------
-                # LOCATION HISTORY
-                # ------------------------------------------------
-                if history_available:
-
-                    hlat = float(row.latitude)
-                    hlon = float(row.longitude)
-
-                    # Parentheses are important here.
-                    same = history[
-                        (
-                            (history.lat_bin - hlat).abs() <= 1.0
-                        )
-                        &
-                        (
-                            (history.lon_bin - hlon).abs() <= 1.0
-                        )
-                    ].copy()
-
-                    if not same.empty:
-
-                        trend = (
-                            same
-                            .groupby("date", as_index=False)
-                            .chla
-                            .mean()
-                            .sort_values("date")
-                        )
-
-                        if len(trend) >= 2:
-
-                            st.markdown(
-                                '<div class="section-label">'
-                                'Location history'
-                                '</div>',
-                                unsafe_allow_html=True
-                            )
-
-                            # ------------------------------------
-                            # HISTORY CHART
-                            # ------------------------------------
-                            fig = px.line(
-                                trend,
-                                x="date",
-                                y="chla",
-                                markers=True,
-                            )
-
-                            fig.update_traces(
-                                line=dict(
-                                    color="#78BDF2",
-                                    width=3
-                                ),
-                                marker=dict(
-                                    size=7,
-                                    color="#78BDF2"
-                                ),
-                                hovertemplate=(
-                                    "<b>%{x|%d %b %Y}</b>"
-                                    "<br>Mean Chl-a: %{y:.4f}"
-                                    "<extra></extra>"
-                                ),
-                            )
-
-                            fig.update_layout(
-                                height=320,
-                                margin=dict(
-                                    l=60,
-                                    r=20,
-                                    t=20,
-                                    b=60
-                                ),
-
-                                paper_bgcolor="white",
-                                plot_bgcolor="white",
-
-                                font=dict(
-                                    family="DM Sans",
-                                    color="#0B3E49"
-                                ),
-
-                                # X AXIS
-                                xaxis=dict(
-                                    title=dict(
-                                        text="Observation date",
-                                        font=dict(
-                                            color="#111111",
-                                            size=14
-                                        )
-                                    ),
-                                    tickfont=dict(
-                                        color="#111111",
-                                        size=12
-                                    ),
-                                    showline=True,
-                                    linecolor="#111111",
-                                    linewidth=1.5,
-                                    showgrid=True,
-                                    gridcolor="#E5E7EB",
-                                    zeroline=False,
-                                ),
-
-                                # Y AXIS
-                                yaxis=dict(
-                                    title=dict(
-                                        text="Mean Chl-a",
-                                        font=dict(
-                                            color="#111111",
-                                            size=14
-                                        )
-                                    ),
-                                    tickfont=dict(
-                                        color="#111111",
-                                        size=12
-                                    ),
-                                    showline=True,
-                                    linecolor="#111111",
-                                    linewidth=1.5,
-                                    showgrid=True,
-                                    gridcolor="#E5E7EB",
-                                    zeroline=False,
-                                ),
-
-                                hoverlabel=dict(
-                                    bgcolor="white",
-                                    font=dict(
-                                        color="#0B3E49"
-                                    )
-                                ),
-                            )
-
-                            st.plotly_chart(
-                                fig,
-                                width="stretch",
-                                config={
-                                    "displaylogo": False,
-                                    "responsive": True
-                                }
-                            )
-
-                # ------------------------------------------------
-                # SCIENTIFIC BOUNDARY
-                # ------------------------------------------------
-                st.markdown(
-                    '''
-                    <div class="callout">
-                        <strong>Scientific boundary:</strong>
-                        this lookup is a satellite screening aid. It cannot
-                        independently establish harmfulness, species identity,
-                        toxin presence or ecological impact.
+                        This valid processed ocean cell is not included
+                        in the latest potential-risk screening output.
                     </div>
-                    ''',
+                    """,
                     unsafe_allow_html=True
                 )
+
+    # ========================================================
+    # SUPPORTING SIGNALS
+    # Placed below the two-column top section so the left side
+    # is no longer a giant empty space.
+    # ========================================================
+
+    if check and row is not None and lookup_error is None:
+
+        st.markdown(
+            '<div class="section-label">Supporting signals</div>',
+            unsafe_allow_html=True
+        )
+
+        values = [
+            (
+                "Current Chl-a",
+                row.get("chla", np.nan)
+            ),
+            (
+                "Historical baseline",
+                row.get("historical_baseline", np.nan)
+            ),
+            (
+                "Anomaly",
+                row.get("chla_anomaly", np.nan)
+            ),
+            (
+                "Recent change",
+                row.get("chla_change", np.nan)
+            ),
+        ]
+
+        signal_cols = st.columns(4, gap="medium")
+
+        for col, (label, value) in zip(signal_cols, values):
+
+            with col:
+
+                metric(
+                    label,
+                    fmt_num(value),
+                    "available signal"
+                )
+
+    # ========================================================
+    # LOCATION HISTORY
+    # Full-width so the graph is not squeezed into the
+    # right-hand column.
+    # ========================================================
+
+    if (
+        check
+        and row is not None
+        and lookup_error is None
+        and history_available
+    ):
+
+        hlat = float(row.latitude)
+        hlon = float(row.longitude)
+
+        # IMPORTANT:
+        # Parentheses prevent pandas '&' precedence problems.
+        same = history[
+            (
+                (history.lat_bin - hlat).abs() <= 1.0
+            )
+            &
+            (
+                (history.lon_bin - hlon).abs() <= 1.0
+            )
+        ].copy()
+
+        if not same.empty:
+
+            trend = (
+                same
+                .groupby("date", as_index=False)
+                .chla
+                .mean()
+                .sort_values("date")
+            )
+
+            if len(trend) >= 2:
+
+                st.markdown(
+                    '<div class="section-label">Location history</div>',
+                    unsafe_allow_html=True
+                )
+
+                # ------------------------------------------------
+                # FULL-WIDTH HISTORY CHART
+                # ------------------------------------------------
+
+                fig = px.line(
+                    trend,
+                    x="date",
+                    y="chla",
+                    markers=True,
+                )
+
+                fig.update_traces(
+                    line=dict(
+                        color="#78BDF2",
+                        width=3
+                    ),
+                    marker=dict(
+                        size=7,
+                        color="#78BDF2"
+                    ),
+                    hovertemplate=(
+                        "<b>%{x|%d %b %Y}</b>"
+                        "<br>Mean Chl-a: %{y:.4f}"
+                        "<extra></extra>"
+                    ),
+                )
+
+                fig.update_layout(
+                    height=360,
+
+                    margin=dict(
+                        l=65,
+                        r=25,
+                        t=20,
+                        b=65
+                    ),
+
+                    paper_bgcolor="white",
+                    plot_bgcolor="white",
+
+                    font=dict(
+                        family="DM Sans",
+                        color="#0B3E49"
+                    ),
+
+                    # --------------------------------------------
+                    # X AXIS
+                    # --------------------------------------------
+
+                    xaxis=dict(
+                        title=dict(
+                            text="Observation date",
+                            font=dict(
+                                color="#111111",
+                                size=14
+                            )
+                        ),
+
+                        tickfont=dict(
+                            color="#111111",
+                            size=12
+                        ),
+
+                        showline=True,
+                        linecolor="#111111",
+                        linewidth=1.5,
+
+                        showgrid=True,
+                        gridcolor="#E5E7EB",
+
+                        zeroline=False,
+                    ),
+
+                    # --------------------------------------------
+                    # Y AXIS
+                    # --------------------------------------------
+
+                    yaxis=dict(
+                        title=dict(
+                            text="Mean Chl-a",
+                            font=dict(
+                                color="#111111",
+                                size=14
+                            )
+                        ),
+
+                        tickfont=dict(
+                            color="#111111",
+                            size=12
+                        ),
+
+                        showline=True,
+                        linecolor="#111111",
+                        linewidth=1.5,
+
+                        showgrid=True,
+                        gridcolor="#E5E7EB",
+
+                        zeroline=False,
+                    ),
+
+                    hoverlabel=dict(
+                        bgcolor="white",
+                        font=dict(
+                            color="#0B3E49"
+                        )
+                    ),
+                )
+
+                st.plotly_chart(
+                    fig,
+                    width="stretch",
+                    config={
+                        "displaylogo": False,
+                        "responsive": True
+                    }
+                )
+
+    # ========================================================
+    # SCIENTIFIC BOUNDARY
+    # ========================================================
+
+    if check and row is not None and lookup_error is None:
+
+        st.markdown(
+            """
+            <div class="callout">
+                <strong>Scientific boundary:</strong>
+                this lookup is a satellite screening aid. It cannot
+                independently establish harmfulness, species identity,
+                toxin presence or ecological impact.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ========================================================
+    # FOOTER
+    # ========================================================
 
     footer()
 
