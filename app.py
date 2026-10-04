@@ -122,14 +122,14 @@ html,body,[data-testid="stAppViewContainer"]{background:var(--bg)!important;colo
 .nav{margin:8px 0 18px}.nav .stButton>button{min-height:40px!important;border-radius:12px!important;font-size:.76rem!important;}
 .stButton>button,.stDownloadButton>button{border:1.7px solid #164e5b!important;background:#fff!important;color:#123f49!important;border-radius:12px!important;font-weight:800!important;min-height:41px!important;box-shadow:0 3px 11px rgba(15,70,82,.06)!important}.stButton>button:hover,.stDownloadButton>button:hover{background:#e4f8f8!important;border-color:#087d8c!important}.stButton>button[kind="primary"]{background:#d8f7f7!important;border-color:#078c9b!important}
 .kicker{font:800 .61rem Manrope;letter-spacing:.17em;text-transform:uppercase;color:#0797a5;margin-bottom:8px}.section h1,.section h2{font:800 clamp(2.05rem,4.2vw,3.45rem)/1.04 Manrope;color:var(--ink);letter-spacing:-.06em;margin:0 0 10px}.section p{font-size:.88rem;color:#5f8088;line-height:1.58;margin:0;max-width:1080px}.section{padding:10px 0 6px}
-.hero{position:relative;overflow:hidden;min-height:320px;padding:46px 48px;border-radius:27px;background:linear-gradient(135deg,#063d51,#087486 55%,#12a8ad);box-shadow:0 18px 48px rgba(6,86,100,.13);margin-bottom:18px}.hero:after{content:"";position:absolute;width:480px;height:480px;right:-180px;top:-190px;border:72px solid rgba(205,255,253,.10);border-radius:50%;box-shadow:0 0 0 50px rgba(205,255,253,.05),0 0 0 110px rgba(205,255,253,.035)}.hero-content{position:relative;z-index:2;max-width:850px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(2.9rem,5.8vw,5.1rem)/.94 Manrope;color:#e5ffff;letter-spacing:-.075em;margin:0 0 17px}.hero p{font-size:.94rem;line-height:1.65;color:#e2fbfb;max-width:780px}.badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}.badge{padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#efffff;font-size:.69rem;font-weight:700}
+.hero{position:relative;overflow:hidden;min-height:285px;padding:42px 48px;border-radius:27px;background:linear-gradient(135deg,#063d51,#087486 55%,#12a8ad);box-shadow:0 18px 48px rgba(6,86,100,.13);margin-bottom:18px}.hero:after{content:"";position:absolute;width:480px;height:480px;right:-180px;top:-190px;border:72px solid rgba(205,255,253,.10);border-radius:50%;box-shadow:0 0 0 50px rgba(205,255,253,.05),0 0 0 110px rgba(205,255,253,.035)}.hero-content{position:relative;z-index:2;max-width:850px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(2.9rem,5.8vw,5.1rem)/.94 Manrope;color:#e5ffff;letter-spacing:-.075em;margin:0 0 17px}.hero p{font-size:.94rem;line-height:1.65;color:#e2fbfb;max-width:780px}.badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}.badge{padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#efffff;font-size:.69rem;font-weight:700}
 .metric{min-height:103px;padding:15px;border:1.5px solid #a6d5da;border-radius:17px;background:linear-gradient(145deg,#fff,#eaf8f8);box-shadow:0 7px 20px rgba(15,91,101,.05)}.metric-label{font:800 .58rem Manrope;letter-spacing:.11em;text-transform:uppercase;color:#6d8c93}.metric-value{font:800 1.38rem Manrope;color:#123f49;margin-top:4px;overflow-wrap:anywhere}.metric-note{font-size:.65rem;color:#78959b;margin-top:3px}
 .card{padding:19px;border:1.5px solid #afd9dc;border-radius:19px;background:#fff;box-shadow:0 9px 25px rgba(9,80,94,.06)}.card h3{font:800 1.12rem Manrope;color:#123f49;margin:0 0 7px}.card p{font-size:.83rem;line-height:1.55;color:#66848b;margin:0}.note{padding:12px 14px;margin-top:12px;background:#e5f8f8;border-left:4px solid #11a9b2;border-radius:0 12px 12px 0;color:#52757c;font-size:.75rem;line-height:1.5}.note b{color:#174b56}
-.story{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;margin-top:17px}.story-img{border:1.5px solid #a9d6da;border-radius:19px;overflow:hidden;background:#dff7f8;box-shadow:0 10px 28px rgba(9,80,94,.07)}
+.story{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;margin-top:17px}.story-img{border:1.5px solid #a9d6da;border-radius:19px;overflow:hidden;background:#dff7f8;box-shadow:0 10px 28px rgba(9,80,94,.07)}
 .map-wrap{background:#dff7f8;border:1.5px solid #91cbd1;border-radius:20px;padding:4px;box-shadow:0 12px 30px rgba(9,80,94,.07);overflow:hidden}.map-head{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;align-items:center}.map-head b{font-size:.79rem;color:#174b56}.map-head span{font-size:.64rem;color:#6b8b92}.legend{display:flex;gap:12px;flex-wrap:wrap;padding:9px 11px;color:#54757c;font-size:.69rem}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-1px;margin-right:4px}
 .signal-title{font:800 .61rem Manrope;letter-spacing:.15em;text-transform:uppercase;color:#6d8c93;margin:17px 0 7px}.signal{padding:13px;border:1.5px solid #b9dfe2;border-radius:15px;background:#fff}.signal-label{font-size:.64rem;color:#78959b}.signal-value{font:800 1.08rem Manrope;color:#164a55;margin-top:3px}.signal-sub{font-size:.66rem;color:#78959b;margin-top:2px}
 .status{padding:14px;border-radius:15px;border:2px solid;margin-top:12px}.status-risk{background:#fff0f2;border-color:#f06a78;color:#9e2d3c}.status-ok{background:#eafaf4;border-color:#49b995;color:#176f58}.status-title{font:800 .86rem Manrope;margin-bottom:3px}
-.stNumberInput input{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important;color:#123f49!important;font-weight:700!important}.stNumberInput label,.stNumberInput label p{color:#174b56!important;font-weight:800!important;font-size:.76rem!important;opacity:1!important}.stNumberInput [data-baseweb="input"]{background:#fff!important}.stSelectbox div[data-baseweb="select"]>div{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stPlotlyChart{border-radius:16px;overflow:hidden}
+.stNumberInput input{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stSelectbox div[data-baseweb="select"]>div{border:1.7px solid #164e5b!important;border-radius:10px!important;background:#fff!important}.stPlotlyChart{border-radius:16px;overflow:hidden}
 .footer{border-top:1px solid #d5ebed;margin-top:28px;padding-top:12px;color:#76959b;font-size:.63rem}
 .home-spacer{height:4px}
 @media(max-width:900px){.story{grid-template-columns:1fr}}@media(max-width:620px){.block-container{padding:12px 12px 35px!important}.brand{padding:10px}.latest{display:none}.hero{padding:34px 23px;min-height:300px}.hero h1{font-size:2.85rem}}
@@ -226,6 +226,9 @@ def make_latest_map(frame, risk_frame, view, height=575):
             "Historical anomaly": "chla_anomaly",
         }[view]
         plot = frame.dropna(subset=[col]).copy() if col in frame.columns else pd.DataFrame()
+        if col in plot.columns:
+            plot[col] = pd.to_numeric(plot[col], errors="coerce")
+            plot = plot.replace([np.inf, -np.inf], np.nan).dropna(subset=[col])
         if len(plot) > 14000:
             plot = plot.sample(14000, random_state=42)
         if plot.empty:
@@ -237,7 +240,11 @@ def make_latest_map(frame, risk_frame, view, height=575):
             lon=plot["longitude"], lat=plot["latitude"], mode="markers", name=view,
             marker=dict(
                 size=4.2, color=plot[col], colorscale=colorscale, opacity=.76,
-                colorbar=dict(title=color_title, thickness=13, tickfont=dict(color="#244f58"), titlefont=dict(color="#244f58")),
+                colorbar=dict(
+                    title=dict(text=color_title, font=dict(color="#123f49", size=13)),
+                    thickness=13,
+                    tickfont=dict(color="#123f49", size=12),
+                ),
             ),
             customdata=np.c_[plot["chla"], plot[col]],
             hovertemplate="Lat %{lat:.3f}°<br>Lon %{lon:.3f}°<br>Chl-a %{customdata[0]:.4f}<br>Signal %{customdata[1]:.4f}<extra></extra>",
@@ -256,11 +263,11 @@ def make_latest_map(frame, risk_frame, view, height=575):
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="#e6f8fa",
         plot_bgcolor="#e6f8fa",
-        font=dict(family="DM Sans", color="#174b56"),
+        font=dict(family="DM Sans", color="#123f49", size=12),
         legend=dict(
             orientation="h", y=.01, x=.02,
             bgcolor="rgba(255,255,255,.82)", bordercolor="#b9dfe2", borderwidth=1,
-            font=dict(color="#174b56"),
+            font=dict(color="#123f49", size=12),
         ),
         hoverlabel=dict(bgcolor="#103f49", font_color="#fff"),
     )
@@ -308,11 +315,11 @@ def make_history_map(selected_history, selected_date):
         height=575,
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="#e6f8fa", plot_bgcolor="#e6f8fa",
-        font=dict(family="DM Sans", color="#174b56"),
+        font=dict(family="DM Sans", color="#123f49", size=12),
         legend=dict(
             orientation="h", y=.01, x=.02,
             bgcolor="rgba(255,255,255,.84)", bordercolor="#b9dfe2", borderwidth=1,
-            font=dict(color="#174b56"),
+            font=dict(color="#123f49", size=12),
         ),
         hoverlabel=dict(bgcolor="#103f49", font_color="#fff"),
         title=dict(text=fmt_date(selected_date), font=dict(color="#174b56", size=14), x=.02, xanchor="left"),
@@ -384,7 +391,6 @@ if st.session_state.page == "home":
     with c3: metric_card("Risk share", f"{(len(latest_risk)/len(latest)*100 if len(latest) else 0):.2f}%", "of processed cells")
     with c4: metric_card("Maximum Chl-a", fmt_num(latest["chla"].max()), "latest field")
 
-    st.markdown('<div class="home-spacer"></div>', unsafe_allow_html=True)
     left,right = st.columns([1,1], gap="large")
     with left:
         st.markdown(
@@ -504,165 +510,68 @@ elif st.session_state.page == "location":
     heading(
         "02 · LOCATION INTELLIGENCE",
         "Check one coordinate with clean evidence.",
-        "Enter a latitude and longitude. BloomDetect finds the nearest valid processed ocean cell and keeps your entered coordinate separate from the satellite observation.",
+        "Enter a latitude and longitude. BloomDetect separates your input from the nearest valid processed ocean cell, so land and zero-value observations are not presented as meaningful ocean results.",
     )
 
-    left, right = st.columns([0.72, 1.28], gap="large")
-
-    # -------------------------
-    # INPUT PANEL
-    # -------------------------
+    left,right = st.columns([.75,1.25], gap="large")
     with left:
-        st.markdown(
-            '<div class="card"><div class="kicker">YOUR INPUT</div>'
-            '<h3>Choose a coordinate</h3>'
-            '<p>Use decimal degrees. Example: 17.38, 78.49.</p></div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<div class="card"><h3>Your input</h3><p>Enter decimal degrees. Example: 17.38, 78.49.</p></div>', unsafe_allow_html=True)
+        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=17.38, step=0.01, format="%.4f", key="input_lat")
+        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=78.49, step=0.01, format="%.4f", key="input_lon")
+        check = st.button("🔎 Check location", width="stretch", type="primary")
 
-        st.markdown('<div style="margin-top:14px;font-weight:800;color:#174b56;font-size:.78rem">Latitude</div>', unsafe_allow_html=True)
-        lat = st.number_input(
-            "Latitude",
-            min_value=-90.0,
-            max_value=90.0,
-            value=17.38,
-            step=0.01,
-            format="%.4f",
-            key="input_lat",
-            label_visibility="collapsed",
-        )
-
-        st.markdown('<div style="margin-top:13px;font-weight:800;color:#174b56;font-size:.78rem">Longitude</div>', unsafe_allow_html=True)
-        lon = st.number_input(
-            "Longitude",
-            min_value=-180.0,
-            max_value=180.0,
-            value=78.49,
-            step=0.01,
-            format="%.4f",
-            key="input_lon",
-            label_visibility="collapsed",
-        )
-
-        st.markdown('<div style="height:5px"></div>', unsafe_allow_html=True)
-        check = st.button("🔎  Check location", width="stretch", type="primary")
-
-        st.markdown(
-            '<div class="note" style="margin-top:12px"><b>Study window:</b> '
-            f'{LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude · {LON_MIN:.0f}°E to {LON_MAX:.0f}°E longitude.</div>',
-            unsafe_allow_html=True,
-        )
-
-    # -------------------------
-    # RESULT PANEL
-    # -------------------------
-    with right:
-        if not check:
-            st.markdown(
-                '<div class="card" style="min-height:292px">'
-                '<div class="kicker">NEAREST PROCESSED OCEAN CELL</div>'
-                '<h3>Waiting for a coordinate</h3>'
-                '<p>Press <b>Check location</b> to find the nearest valid satellite observation.</p>'
-                '<div class="note" style="margin-top:18px">'
-                '<b>What is checked?</b><br>'
-                'Only valid ocean observations with positive Chl-a values are considered. '
-                'Land and zero-value cells are excluded.'
-                '</div></div>',
-                unsafe_allow_html=True,
-            )
+    if check:
+        if not (LAT_MIN <= float(lat) <= LAT_MAX and LON_MIN <= float(lon) <= LON_MAX):
+            with right:
+                st.warning(f"The coordinate is outside the BloomDetect study window ({LAT_MIN}° to {LAT_MAX}° latitude, {LON_MIN}° to {LON_MAX}° longitude).")
         else:
-            lat_f, lon_f = float(lat), float(lon)
-
-            if not (LAT_MIN <= lat_f <= LAT_MAX and LON_MIN <= lon_f <= LON_MAX):
-                st.error(
-                    f"This coordinate is outside the BloomDetect study window "
-                    f"({LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude, "
-                    f"{LON_MIN:.0f}°E to {LON_MAX:.0f}°E longitude)."
-                )
+            row, distance_deg = nearest_valid(float(lat), float(lon))
+            if row is None:
+                with right:
+                    st.error("No valid processed ocean cells are available for this lookup.")
             else:
-                row, distance_deg = nearest_valid(lat_f, lon_f)
-
-                if row is None:
-                    st.error("No valid processed ocean cell is available for this coordinate.")
-                else:
-                    flagged = bool(row["risk_flag"])
-                    prob = row.get("risk_probability", np.nan)
-                    prob_text = f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable"
-                    status_text = "Potential bloom risk" if flagged else "Not flagged"
-
+                flagged = bool(row["risk_flag"])
+                with right:
                     st.markdown(
-                        f'<div class="card">'
-                        f'<div class="kicker">NEAREST PROCESSED OCEAN CELL</div>'
-                        f'<h3 style="font-size:1.45rem">{float(row["latitude"]):.4f}° · {float(row["longitude"]):.4f}°</h3>'
-                        f'<p><b>Your input:</b> {lat_f:.4f}° · {lon_f:.4f}°<br>'
-                        f'<b>Approx. separation:</b> {distance_deg:.2f}°</p>'
-                        f'</div>',
+                        f'<div class="card"><div class="kicker">NEAREST VALID PROCESSED OCEAN CELL</div><h3>{row["latitude"]:.4f}° · {row["longitude"]:.4f}°</h3><p>Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>Approx. angular separation: {distance_deg:.2f}°</p></div>',
                         unsafe_allow_html=True,
                     )
 
-                    r1, r2 = st.columns(2, gap="medium")
+                    r1,r2 = st.columns(2)
                     with r1:
-                        st.markdown(
-                            f'<div class="signal"><div class="signal-label">Observation date</div>'
-                            f'<div class="signal-value">{fmt_date(row["date"])}</div></div>',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f'<div class="signal"><div class="signal-label">Observation date</div><div class="signal-value">{fmt_date(row["date"])}</div></div>', unsafe_allow_html=True)
                     with r2:
-                        st.markdown(
-                            f'<div class="signal"><div class="signal-label">Chlorophyll-a</div>'
-                            f'<div class="signal-value">{fmt_num(row["chla"])}</div></div>',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f'<div class="signal"><div class="signal-label">Chlorophyll-a</div><div class="signal-value">{fmt_num(row["chla"])}</div></div>', unsafe_allow_html=True)
 
-                    r3, r4 = st.columns(2, gap="medium")
+                    r3,r4 = st.columns(2)
                     with r3:
-                        st.markdown(
-                            f'<div class="signal"><div class="signal-label">Risk probability</div>'
-                            f'<div class="signal-value">{prob_text}</div></div>',
-                            unsafe_allow_html=True,
-                        )
+                        prob = row.get("risk_probability", np.nan)
+                        prob_text = f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable"
+                        st.markdown(f'<div class="signal"><div class="signal-label">Risk probability</div><div class="signal-value">{prob_text}</div></div>', unsafe_allow_html=True)
                     with r4:
-                        st.markdown(
-                            f'<div class="signal"><div class="signal-label">Screening status</div>'
-                            f'<div class="signal-value">{status_text}</div></div>',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f'<div class="signal"><div class="signal-label">Risk status</div><div class="signal-value">{"Potential risk" if flagged else "Not flagged"}</div></div>', unsafe_allow_html=True)
 
                     if flagged:
-                        st.markdown(
-                            '<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>'
-                            'This processed cell is included in the latest potential-risk screening output. '
-                            'This is not confirmation of a harmful algal bloom.</div>',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown('<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>This processed cell is included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown(
-                            '<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>'
-                            'This valid processed ocean cell is not included in the latest potential-risk screening output.</div>',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown('<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>This valid processed ocean cell is not included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
 
-                    st.markdown('<div class="signal-title">SUPPORTING SIGNALS</div>', unsafe_allow_html=True)
-                    s1, s2, s3, s4 = st.columns(4, gap="small")
+                    st.markdown('<div class="signal-title">Supporting signals</div>', unsafe_allow_html=True)
+                    s1,s2,s3,s4 = st.columns(4)
                     vals = [
-                        ("Current Chl-a", row.get("chla", np.nan)),
-                        ("Historical baseline", row.get("historical_baseline", np.nan)),
-                        ("Anomaly", row.get("chla_anomaly", np.nan)),
-                        ("Recent change", row.get("chla_change", np.nan)),
+                        ("Current Chl-a", row.get("chla",np.nan)),
+                        ("Historical baseline", row.get("historical_baseline",np.nan)),
+                        ("Anomaly", row.get("chla_anomaly",np.nan)),
+                        ("Recent change", row.get("chla_change",np.nan)),
                     ]
-                    for c, (lab, val) in zip([s1, s2, s3, s4], vals):
+                    for c,(lab,val) in zip([s1,s2,s3,s4],vals):
                         with c:
-                            st.markdown(
-                                f'<div class="signal"><div class="signal-label">{lab}</div>'
-                                f'<div class="signal-value">{fmt_num(val)}</div></div>',
-                                unsafe_allow_html=True,
-                            )
+                            st.markdown(f'<div class="signal"><div class="signal-label">{lab}</div><div class="signal-value">{fmt_num(val)}</div></div>', unsafe_allow_html=True)
 
-                    st.markdown(
-                        '<div class="note"><b>Interpretation:</b> the result is based on the nearest valid processed satellite cell. '
-                        'It is a screening aid, not a confirmed harmful algal bloom.</div>',
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown('<div class="note"><b>Interpretation:</b> this lookup reports the nearest valid processed satellite cell. It is a screening aid and does not establish a confirmed harmful algal bloom.</div>', unsafe_allow_html=True)
+    else:
+        with right:
+            st.markdown('<div class="card"><h3>Nearest processed ocean cell</h3><p>Press <b>Check location</b> to evaluate the coordinate. Land and zero-value cells are excluded from the result.</p><div class="note">Your input stays separate from the actual processed satellite cell. The dashboard only reports a valid ocean observation after the lookup is run.</div></div>', unsafe_allow_html=True)
 
     add_footer()
 
@@ -708,20 +617,21 @@ elif st.session_state.page == "insights":
             fig.update_traces(marker_color="#ef4f5e")
             fig.update_layout(
                 height=390,
-                margin=dict(l=18,r=15,t=10,b=55),
+                margin=dict(l=155,r=24,t=18,b=70),
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="DM Sans", color="#315b63"),
+                font=dict(family="DM Sans", color="#123f49", size=12),
                 xaxis=dict(
                     title="Potential-risk cells",
-                    title_font=dict(color="#315b63", size=13),
-                    tickfont=dict(color="#315b63", size=11),
+                    title_font=dict(color="#123f49", size=14),
+                    tickfont=dict(color="#123f49", size=12),
                     gridcolor="#cfe4e6",
                     zerolinecolor="#a8c9cd",
                 ),
                 yaxis=dict(
                     title="",
-                    tickfont=dict(color="#315b63", size=10),
+                    tickfont=dict(color="#123f49", size=12),
                     automargin=True,
+                    fixedrange=True,
                 ),
                 showlegend=False,
             )
@@ -737,20 +647,21 @@ elif st.session_state.page == "insights":
             fig.update_traces(marker_color="#2584a8")
             fig.update_layout(
                 height=390,
-                margin=dict(l=45,r=15,t=10,b=55),
+                margin=dict(l=68,r=24,t=18,b=70),
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="DM Sans", color="#315b63"),
+                font=dict(family="DM Sans", color="#123f49", size=12),
                 xaxis=dict(
                     title="Chlorophyll-a",
-                    title_font=dict(color="#315b63", size=13),
-                    tickfont=dict(color="#315b63", size=11),
+                    title_font=dict(color="#123f49", size=14),
+                    tickfont=dict(color="#123f49", size=12),
                     gridcolor="#cfe4e6",
                 ),
                 yaxis=dict(
                     title="Cells",
-                    title_font=dict(color="#315b63", size=13),
-                    tickfont=dict(color="#315b63", size=11),
+                    title_font=dict(color="#123f49", size=14),
+                    tickfont=dict(color="#123f49", size=12),
                     gridcolor="#cfe4e6",
+                    automargin=True,
                 ),
                 showlegend=False,
             )
@@ -765,11 +676,11 @@ elif st.session_state.page == "insights":
             labels_q=["1%","25%","Median","75%","99%"]
             fig=go.Figure(go.Bar(x=labels_q,y=q.values,marker_color="#2584a8"))
             fig.update_layout(
-                height=290, margin=dict(l=45,r=10,t=15,b=50),
+                height=300, margin=dict(l=68,r=20,t=18,b=62),
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="DM Sans",color="#315b63"),
-                yaxis=dict(title="Chl-a change", title_font=dict(color="#315b63"), tickfont=dict(color="#315b63"), gridcolor="#cfe4e6"),
-                xaxis=dict(title="Distribution point", title_font=dict(color="#315b63"), tickfont=dict(color="#315b63")),
+                font=dict(family="DM Sans",color="#123f49",size=12),
+                yaxis=dict(title="Chl-a change", title_font=dict(color="#123f49", size=14), tickfont=dict(color="#123f49", size=12), gridcolor="#cfe4e6"),
+                xaxis=dict(title="Distribution point", title_font=dict(color="#123f49", size=14), tickfont=dict(color="#123f49", size=12)),
             )
             st.plotly_chart(fig,width="stretch",config={"displaylogo":False})
 
