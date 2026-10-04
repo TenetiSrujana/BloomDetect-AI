@@ -576,7 +576,6 @@ elif st.session_state.page == "map":
             st.markdown('<div class="legend"><span><i style="background:#2387aa"></i>Processed ocean field</span><span><i style="background:#e84e5d"></i>Potential-risk cell</span></div></div>', unsafe_allow_html=True)
 
     footer()
-
 # ============================================================
 # LOCATION
 # ============================================================
@@ -588,76 +587,327 @@ elif st.session_state.page == "location":
         "Enter a real coordinate inside the study window. BloomDetect keeps your input separate from the nearest valid processed ocean cell and reports only evidence available in the dataset.",
     )
 
-    left, right = st.columns([.78, 1.22], gap="large")
-    with left:
-        card("Your input", "Use decimal degrees. The fields start at 1.0000 and can be edited before checking the coordinate.")
-        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=1.0, step=0.01, format="%.4f", key="lookup_lat")
-        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=1.0, step=0.01, format="%.4f", key="lookup_lon")
-        check = st.button("Check coordinate", width="stretch", type="primary")
-        st.markdown('<div class="small-muted">Study window: −40° to 30° latitude · 20° to 120° longitude</div>', unsafe_allow_html=True)
+    # --------------------------------------------------------
+    # Location defaults and dataset grid
+    # --------------------------------------------------------
+    # Study window
+    LOCATION_LAT_MIN = -40.0
+    LOCATION_LAT_MAX = 30.0
+    LOCATION_LON_MIN = 20.0
+    LOCATION_LON_MAX = 120.0
 
+    # E06OCM_L4_AC grid resolution
+    LOCATION_STEP = 0.25
+
+    # Start at the first valid coordinate in the study window.
+    # This avoids the old invalid 1.0000 / 1.0000 default.
+    if "lookup_lat" not in st.session_state:
+        st.session_state.lookup_lat = LOCATION_LAT_MIN
+
+    if "lookup_lon" not in st.session_state:
+        st.session_state.lookup_lon = LOCATION_LON_MIN
+
+    left, right = st.columns([.78, 1.22], gap="large")
+
+    # ========================================================
+    # LEFT: USER INPUT
+    # ========================================================
+    with left:
+        card(
+            "Your input",
+            "Use decimal degrees. The fields start at the first valid coordinate in the study window and can be edited before checking the coordinate.",
+        )
+
+        lat = st.number_input(
+            "Latitude",
+            min_value=LOCATION_LAT_MIN,
+            max_value=LOCATION_LAT_MAX,
+            step=LOCATION_STEP,
+            format="%.4f",
+            key="lookup_lat",
+        )
+
+        lon = st.number_input(
+            "Longitude",
+            min_value=LOCATION_LON_MIN,
+            max_value=LOCATION_LON_MAX,
+            step=LOCATION_STEP,
+            format="%.4f",
+            key="lookup_lon",
+        )
+
+        check = st.button(
+            "Check coordinate",
+            width="stretch",
+            type="primary",
+        )
+
+        st.markdown(
+            f'''
+            <div class="small-muted">
+                Study window: −40° to 30° latitude ·
+                20° to 120° longitude ·
+                Grid: 0.25°
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+
+    # ========================================================
+    # RIGHT: RESULT
+    # ========================================================
     with right:
+
         if not check:
-            card("Nearest processed ocean cell", "Enter both coordinates and run the lookup. Results will appear here without inventing a default location.")
+            card(
+                "Nearest processed ocean cell",
+                "Enter a coordinate and run the lookup. Results will appear here without inventing a default location.",
+            )
+
         elif lat is None or lon is None:
-            st.warning("Enter both latitude and longitude before checking the coordinate.")
-        elif not (LAT_MIN <= float(lat) <= LAT_MAX and LON_MIN <= float(lon) <= LON_MAX):
-            st.error(f"This coordinate is outside the study window: {LAT_MIN}° to {LAT_MAX}° latitude and {LON_MIN}° to {LON_MAX}° longitude.")
+            st.warning(
+                "Enter both latitude and longitude before checking the coordinate."
+            )
+
+        elif not (
+            LOCATION_LAT_MIN <= float(lat) <= LOCATION_LAT_MAX
+            and LOCATION_LON_MIN <= float(lon) <= LOCATION_LON_MAX
+        ):
+            st.error(
+                f"This coordinate is outside the study window: "
+                f"{LOCATION_LAT_MIN}° to {LOCATION_LAT_MAX}° latitude and "
+                f"{LOCATION_LON_MIN}° to {LOCATION_LON_MAX}° longitude."
+            )
+
         else:
-            row, separation = nearest_ocean_cell(float(lat), float(lon))
+            # ------------------------------------------------
+            # Find nearest processed ocean cell
+            # ------------------------------------------------
+            row, separation = nearest_ocean_cell(
+                float(lat),
+                float(lon),
+            )
+
             if row is None:
-                st.error("No valid processed ocean cell is available for this lookup.")
+                st.error(
+                    "No valid processed ocean cell is available for this lookup."
+                )
+
             else:
                 flagged = bool(row.risk_flag)
-                card("Nearest processed ocean cell", f"<b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>Approximate angular separation: {separation:.2f}°")
+
+                card(
+                    "Nearest processed ocean cell",
+                    f"""
+                    <b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>
+                    Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>
+                    Approximate angular separation: {separation:.2f}°
+                    """,
+                )
+
+                # ------------------------------------------------
+                # Observation information
+                # ------------------------------------------------
                 a, b = st.columns(2)
-                with a: metric("Observation date", fmt_date(row.date), "nearest valid cell")
-                with b: metric("Chlorophyll-a", fmt_num(row.chla), "processed observation")
+
+                with a:
+                    metric(
+                        "Observation date",
+                        fmt_date(row.date),
+                        "nearest valid cell",
+                    )
+
+                with b:
+                    metric(
+                        "Chlorophyll-a",
+                        fmt_num(row.chla),
+                        "processed observation",
+                    )
+
+                # ------------------------------------------------
+                # Screening information
+                # ------------------------------------------------
                 c, d = st.columns(2)
+
                 with c:
-                    prob = row.get("risk_probability", np.nan)
-                    metric("Screening probability", f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable", "stored model output")
-                with d: metric("Screening status", "Potential risk" if flagged else "Not flagged", "latest field")
+                    prob = row.get(
+                        "risk_probability",
+                        np.nan,
+                    )
 
+                    metric(
+                        "Screening probability",
+                        (
+                            f"{float(prob):.1%}"
+                            if pd.notna(prob)
+                            else "Unavailable"
+                        ),
+                        "stored model output",
+                    )
+
+                with d:
+                    metric(
+                        "Screening status",
+                        "Potential risk" if flagged else "Not flagged",
+                        "latest field",
+                    )
+
+                # ------------------------------------------------
+                # Screening status banner
+                # ------------------------------------------------
                 if flagged:
-                    st.markdown('<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>This processed cell is included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>This valid processed ocean cell is not included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '''
+                        <div class="status status-risk">
+                            <div class="status-title">
+                                🔴 Potential bloom-risk screening
+                            </div>
+                            This processed cell is included in the latest
+                            potential-risk screening output.
+                        </div>
+                        ''',
+                        unsafe_allow_html=True,
+                    )
 
-                st.markdown('<div class="section-label">Supporting signals</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        '''
+                        <div class="status status-ok">
+                            <div class="status-title">
+                                🟢 Not flagged
+                            </div>
+                            This valid processed ocean cell is not included
+                            in the latest potential-risk screening output.
+                        </div>
+                        ''',
+                        unsafe_allow_html=True,
+                    )
+
+                # ====================================================
+                # SUPPORTING SIGNALS
+                # ====================================================
+                st.markdown(
+                    '<div class="section-label">Supporting signals</div>',
+                    unsafe_allow_html=True,
+                )
+
                 values = [
-                    ("Current Chl-a", row.get("chla", np.nan)),
-                    ("Historical baseline", row.get("historical_baseline", np.nan)),
-                    ("Anomaly", row.get("chla_anomaly", np.nan)),
-                    ("Recent change", row.get("chla_change", np.nan)),
+                    (
+                        "Current Chl-a",
+                        row.get("chla", np.nan),
+                    ),
+                    (
+                        "Historical baseline",
+                        row.get("historical_baseline", np.nan),
+                    ),
+                    (
+                        "Anomaly",
+                        row.get("chla_anomaly", np.nan),
+                    ),
+                    (
+                        "Recent change",
+                        row.get("chla_change", np.nan),
+                    ),
                 ]
+
                 cols = st.columns(4)
+
                 for col, (label, value) in zip(cols, values):
                     with col:
-                        metric(label, fmt_num(value), "available signal")
+                        metric(
+                            label,
+                            fmt_num(value),
+                            "available signal",
+                        )
 
-                # Only show a history chart when actual history exists for this coordinate.
+                # ====================================================
+                # LOCATION HISTORY
+                # ====================================================
+                # Only show the chart when real historical data exists.
                 if history_available:
+
                     hlat = float(row.latitude)
                     hlon = float(row.longitude)
-                    same = history[
-                        (history.lat_bin - hlat).abs() <= 1.0
-                        & (history.lon_bin - hlon).abs() <= 1.0
-                    ].copy()
-                    if not same.empty:
-                        trend = same.groupby("date", as_index=False).chla.mean().sort_values("date")
-                        if len(trend) >= 2:
-                            st.markdown('<div class="section-label">Location history</div>', unsafe_allow_html=True)
-                            fig = px.line(trend, x="date", y="chla", markers=True)
-                            fig.update_layout(
-                                height=320, margin=dict(l=50, r=20, t=20, b=50),
-                                paper_bgcolor="white", plot_bgcolor="white",
-                                font=dict(family="DM Sans", color="#0b3e49"),
-                                xaxis_title="Observation date", yaxis_title="Mean Chl-a",
-                            )
-                            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
-                st.markdown('<div class="callout"><strong>Scientific boundary:</strong> this lookup is a satellite screening aid. It cannot independently establish harmfulness, species identity, toxin presence or ecological impact.</div>', unsafe_allow_html=True)
+                    # IMPORTANT:
+                    # Parentheses are required around each condition.
+                    # The previous version caused the pandas TypeError
+                    # visible in the screenshot.
+                    same = history[
+                        (
+                            (history["lat_bin"] - hlat).abs() <= 1.0
+                        )
+                        &
+                        (
+                            (history["lon_bin"] - hlon).abs() <= 1.0
+                        )
+                    ].copy()
+
+                    if not same.empty:
+
+                        trend = (
+                            same.groupby(
+                                "date",
+                                as_index=False,
+                            )["chla"]
+                            .mean()
+                            .sort_values("date")
+                        )
+
+                        if len(trend) >= 2:
+
+                            st.markdown(
+                                '<div class="section-label">Location history</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                            fig = px.line(
+                                trend,
+                                x="date",
+                                y="chla",
+                                markers=True,
+                            )
+
+                            fig.update_layout(
+                                height=320,
+                                margin=dict(
+                                    l=50,
+                                    r=20,
+                                    t=20,
+                                    b=50,
+                                ),
+                                paper_bgcolor="white",
+                                plot_bgcolor="white",
+                                font=dict(
+                                    family="DM Sans",
+                                    color="#0b3e49",
+                                ),
+                                xaxis_title="Observation date",
+                                yaxis_title="Mean Chl-a",
+                            )
+
+                            st.plotly_chart(
+                                fig,
+                                width="stretch",
+                                config={
+                                    "displaylogo": False
+                                },
+                            )
+
+                # ====================================================
+                # SCIENTIFIC BOUNDARY
+                # ====================================================
+                st.markdown(
+                    '''
+                    <div class="callout">
+                        <strong>Scientific boundary:</strong>
+                        this lookup is a satellite screening aid. It cannot
+                        independently establish harmfulness, species identity,
+                        toxin presence or ecological impact.
+                    </div>
+                    ''',
+                    unsafe_allow_html=True,
+                )
 
     footer()
 
