@@ -470,13 +470,29 @@ st.markdown(
 if st.session_state.get("page") not in {"home", "map", "location", "insights", "data"}:
     st.session_state.page = "home"
 
-pages = [("home", "⌂ Home"), ("map", "◉ Risk Map"), ("location", "⌖ Location"), ("insights", "▥ Insights"), ("data", "↓ Data")]
+# Small clean space between header and navigation buttons
+st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+pages = [
+    ("home", "⌂ Home"),
+    ("map", "◉ Risk Map"),
+    ("location", "⌖ Location"),
+    ("insights", "▥ Insights"),
+    ("data", "↓ Data"),
+]
+
 nav = st.columns(5)
+
 for col, (key, label) in zip(nav, pages):
     with col:
-        if st.button(label, key="nav_" + key, width="stretch", type="primary" if st.session_state.page == key else "secondary"):
+        if st.button(
+            label,
+            key="nav_" + key,
+            width="stretch",
+            type="primary" if st.session_state.page == key else "secondary",
+        ):
             go_to(key)
-
+            
 # ============================================================
 # HOME
 # ============================================================
