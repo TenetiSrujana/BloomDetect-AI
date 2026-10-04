@@ -315,9 +315,9 @@ html,body,[data-testid="stAppViewContainer"]{
 }
 
 .hero{
-    min-height:330px;
+    min-height:390px;
     border-radius:30px;
-    padding:44px 52px;
+    padding:58px;
     background:linear-gradient(135deg,#063d51,#076d7e 55%,#13a9ad);
     box-shadow:0 28px 72px rgba(6,86,100,.16);
     position:relative;
@@ -436,7 +436,7 @@ html,body,[data-testid="stAppViewContainer"]{
     grid-template-columns:1.05fr .95fr;
     gap:24px;
     align-items:stretch;
-    margin-top:16px;
+    margin-top:22px;
 }
 
 .home-image img{
@@ -643,9 +643,6 @@ html,body,[data-testid="stAppViewContainer"]{
 /* Plotly chart labels: keep titles and ticks dark and readable. */
 [data-testid="stPlotlyChart"]{
     color:#123f49 !important;
-}
-[data-testid="stPlotlyChart"] .js-plotly-plot text{
-    fill:#174b56 !important;
 }
 
 
@@ -1368,12 +1365,18 @@ elif st.session_state.page == "map":
         processed_count = len(latest)
         risk_count = int(latest["risk_flag"].sum())
 
-    a, b = st.columns(2, gap="medium")
+    share = 100 * risk_count / processed_count if processed_count else 0
+
+    a, b, c, d = st.columns(4, gap="medium")
 
     with a:
         metric("Selected date", pd.Timestamp(selected_date).strftime("%d %b %Y"), "observation")
     with b:
-        metric("Potential-risk cells", f"{risk_count:,}", "screening layer")
+        metric("Map cells", f"{processed_count:,}", "selected field")
+    with c:
+        metric("Potential-risk", f"{risk_count:,}", "screening layer")
+    with d:
+        metric("Risk share", f"{share:.2f}%", "selected field")
 
     st.markdown(
         """
@@ -1399,10 +1402,18 @@ elif st.session_state.page == "map":
     st.markdown(
         """
             <div class="map-legend">
-                <span class="legend blue"></span><span>Processed field</span>
-                <span class="legend green"></span><span>Flag concentration</span>
-                <span class="legend red"></span><span>Potential-risk cell</span>
+                <span class="legend blue"></span>
+                <span>Blue = processed ocean field</span>
+                <span class="legend green"></span>
+                <span>Green = flagged-cell concentration</span>
+                <span class="legend red"></span>
+                <span>Red = individual potential-risk cell</span>
             </div>
+        </div>
+        <div class="note">
+            <b>Reading the map:</b> green areas show spatial concentration of
+            screening flags. Red cells are potential-risk screening results,
+            not confirmed harmful algal blooms.
         </div>
         """,
         unsafe_allow_html=True,
