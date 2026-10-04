@@ -170,6 +170,45 @@ html,body,[data-testid="stAppViewContainer"]{
 [data-baseweb="select"]>div,.stNumberInput input{
   border:1px solid #9fcbd0!important;border-radius:11px!important;background:#fff!important;
 }
+/* Location number fields: real editable text, clearly visible on the light UI. */
+[data-testid="stNumberInput"] input,
+.stNumberInput input{
+  color:#0b3e49!important;
+  -webkit-text-fill-color:#0b3e49!important;
+  caret-color:#0b3e49!important;
+  opacity:1!important;
+  font-weight:600!important;
+}
+[data-testid="stNumberInput"] input::placeholder,
+.stNumberInput input::placeholder{
+  color:#8aa1a6!important;
+  -webkit-text-fill-color:#8aa1a6!important;
+  opacity:1!important;
+}
+[data-testid="stNumberInput"] button{
+  color:#0b3e49!important;
+  background:#f2f8f8!important;
+  opacity:1!important;
+}
+[data-testid="stNumberInput"] button:hover{
+  background:#dff7f5!important;
+  color:#0b3e49!important;
+}
+/* Location inputs: keep labels visible and consistent with the BloomDetect theme. */
+[data-testid="stNumberInput"] label,
+.stNumberInput label{
+  color:#0b3e49!important;font-family:'DM Sans',sans-serif!important;
+  font-size:.78rem!important;font-weight:700!important;
+  margin-bottom:4px!important;
+}
+[data-testid="stNumberInput"] label p,
+.stNumberInput label p{color:#0b3e49!important;}
+/* Streamlit alerts should use the same readable dark text as the rest of the app. */
+[data-testid="stAlert"]{
+  border-radius:14px!important;border:1px solid #c4e3e5!important;
+  background:#eaf8f7!important;color:#0b3e49!important;
+}
+[data-testid="stAlert"] *{color:#0b3e49!important;}
 [data-testid="stSlider"]{padding-top:4px!important}
 
 /* Page typography */
@@ -202,8 +241,9 @@ html,body,[data-testid="stAppViewContainer"]{
 .legend{display:flex;flex-wrap:wrap;gap:15px;padding:11px 15px;background:white;border-top:1px solid var(--line);font-size:.68rem;color:#5d7a81}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 
 /* Tables / charts */
-.section-label{font:800 .61rem Manrope;letter-spacing:.16em;text-transform:uppercase;color:#759096;margin:25px 0 8px}
+.section-label{font:800 .61rem Manrope;letter-spacing:.16em;text-transform:uppercase;color:#0b3e49;margin:25px 0 9px}
 [data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+[data-testid="stDataFrame"] *{color:#0b3e49!important}
 .chart-card{padding:4px 0 0}
 
 .footer{margin-top:38px;padding-top:13px;border-top:1px solid #d6e9ea;color:#789197;font-size:.64rem}
@@ -419,84 +459,6 @@ def go_to(page):
 
 
 # ============================================================
-# OCEAN APPLICATION ANALYSIS
-# ============================================================
-
-def productivity_layers(frame):
-    """Return high and very-high Chl-a productivity screening layers."""
-    work = frame[["latitude", "longitude", "chla", "risk_flag"]].copy()
-    work = work.replace([np.inf, -np.inf], np.nan).dropna(subset=["latitude", "longitude", "chla"])
-    work = work[work["chla"] > 0].copy()
-    if work.empty:
-        return work, work, np.nan, np.nan
-    q75 = float(work["chla"].quantile(0.75))
-    q90 = float(work["chla"].quantile(0.90))
-    return work[work["chla"] >= q75].copy(), work[work["chla"] >= q90].copy(), q75, q90
-
-
-def chla_front_layer(frame):
-    """Estimate strong local Chl-a gradients from the processed spatial field.
-
-    This is a spatial signal derived from Chl-a only. It is not a current/front
-    velocity product and must not be interpreted as measured ocean circulation.
-    """
-    cols = ["latitude", "longitude", "chla"]
-    work = frame[cols].replace([np.inf, -np.inf], np.nan).dropna().copy()
-    work = work[work["chla"] > 0].copy()
-    if work.empty:
-        return work
-
-    # Aggregate duplicate cells before pivoting.
-    grid = work.groupby(["latitude", "longitude"], as_index=False)["chla"].mean()
-    pivot = grid.pivot(index="latitude", columns="longitude", values="chla").sort_index().sort_index(axis=1)
-    if pivot.shape[0] < 3 or pivot.shape[1] < 3:
-        return pd.DataFrame(columns=cols + ["chla_gradient"])
-
-    arr = pivot.to_numpy(dtype=float)
-    arr = pd.DataFrame(arr).interpolate(axis=0, limit_direction="both").interpolate(axis=1, limit_direction="both").to_numpy()
-    if not np.isfinite(arr).any():
-        return pd.DataFrame(columns=cols + ["chla_gradient"])
-
-    lat_vals = pivot.index.to_numpy(dtype=float)
-    lon_vals = pivot.columns.to_numpy(dtype=float)
-    dlat = float(np.nanmedian(np.diff(lat_vals))) if len(lat_vals) > 1 else 1.0
-    dlon = float(np.nanmedian(np.diff(lon_vals))) if len(lon_vals) > 1 else 1.0
-    dlat = abs(dlat) if abs(dlat) > 1e-9 else 1.0
-    dlon = abs(dlon) if abs(dlon) > 1e-9 else 1.0
-
-    gy, gx = np.gradient(arr, dlat, dlon)
-    gradient = np.sqrt(gx ** 2 + gy ** 2)
-    out = pd.DataFrame({
-        "latitude": np.repeat(lat_vals, len(lon_vals)),
-        "longitude": np.tile(lon_vals, len(lat_vals)),
-        "chla": arr.ravel(),
-        "chla_gradient": gradient.ravel(),
-    })
-    out = out.replace([np.inf, -np.inf], np.nan).dropna(subset=["chla_gradient"])
-    if out.empty:
-        return out
-    threshold = float(out["chla_gradient"].quantile(0.99))
-    out = out[out["chla_gradient"] >= threshold].copy()
-    return out.sort_values("chla_gradient", ascending=False)
-
-
-def seasonal_summary(history_frame):
-    """Create monthly Chl-a and historical screening summaries."""
-    if history_frame is None or history_frame.empty:
-        return pd.DataFrame()
-    h = history_frame.copy()
-    h["month"] = h["date"].dt.month
-    h["month_name"] = h["date"].dt.strftime("%b")
-    summary = h.groupby(["month", "month_name"], as_index=False).agg(
-        mean_chla=("chla", "mean"),
-        max_chla=("chla", "max"),
-        screening_rate=("risk", "mean"),
-        observations=("chla", "size"),
-    )
-    summary["screening_rate"] = summary["screening_rate"] * 100
-    return summary.sort_values("month")
-
-# ============================================================
 # HEADER / NAVIGATION
 # ============================================================
 
@@ -508,13 +470,29 @@ st.markdown(
 if st.session_state.get("page") not in {"home", "map", "location", "insights", "data"}:
     st.session_state.page = "home"
 
-pages = [("home", "⌂ Home"), ("map", "◉ Risk Map"), ("location", "⌖ Location"), ("insights", "▥ Insights"), ("data", "↓ Data")]
+# Small clean space between header and navigation buttons
+st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+pages = [
+    ("home", "⌂ Home"),
+    ("map", "◉ Risk Map"),
+    ("location", "⌖ Location"),
+    ("insights", "▥ Insights"),
+    ("data", "↓ Data"),
+]
+
 nav = st.columns(5)
+
 for col, (key, label) in zip(nav, pages):
     with col:
-        if st.button(label, key="nav_" + key, width="stretch", type="primary" if st.session_state.page == key else "secondary"):
+        if st.button(
+            label,
+            key="nav_" + key,
+            width="stretch",
+            type="primary" if st.session_state.page == key else "secondary",
+        ):
             go_to(key)
-
+            
 # ============================================================
 # HOME
 # ============================================================
@@ -526,33 +504,67 @@ if st.session_state.page == "home":
     )
 
     st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
+
     c1, c2, c3, c4 = st.columns(4)
-    with c1: metric("Processed cells", f"{len(latest):,}", "latest processed field")
-    with c2: metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
-    with c3: metric("Risk share", f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%", "of processed cells")
-    with c4: metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
+
+    with c1:
+        metric("Processed cells", f"{len(latest):,}", "latest processed field")
+
+    with c2:
+        metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
+
+    with c3:
+        metric(
+            "Risk share",
+            f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%",
+            "of processed cells",
+        )
+
+    with c4:
+        metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
 
     st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+
     left, right = st.columns([1.05, .95], gap="large")
+
     with left:
         card(
             "From satellite observation to investigation support",
             "BloomDetect combines current chlorophyll-a with temporal context such as the previous observation, historical baseline and recent behaviour. The resulting flag is a potential bloom-risk screening signal.",
             '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
         )
+
         st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>',
+            unsafe_allow_html=True,
+        )
+
     with right:
         if IMAGE_FILE.exists():
-            st.image(str(IMAGE_FILE), width="stretch", caption="Satellite ocean-colour observations supporting bloom-risk investigation")
+            st.image(
+                str(IMAGE_FILE),
+                width="stretch",
+                caption="Satellite ocean-colour observations supporting bloom-risk investigation",
+            )
         else:
-            card("Project visual", "The project illustration is not present beside app.py, so no substitute image is being invented.")
+            card(
+                "Project visual",
+                "The project illustration is not present beside app.py, so no substitute image is being invented.",
+            )
 
     if history_available:
         first_hist = history.date.min()
         last_hist = history.date.max()
-        st.markdown(f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>',
+            unsafe_allow_html=True,
+        )
+
     footer()
+
 
 # ============================================================
 # RISK MAP
@@ -620,84 +632,440 @@ elif st.session_state.page == "map":
 # ============================================================
 
 elif st.session_state.page == "location":
+
     page_head(
         "02 · LOCATION INTELLIGENCE",
         "Interrogate one coordinate.",
         "Enter a real coordinate inside the study window. BloomDetect keeps your input separate from the nearest valid processed ocean cell and reports only evidence available in the dataset.",
     )
 
-    left, right = st.columns([.78, 1.22], gap="large")
+    # ========================================================
+    # INPUT + MAIN RESULT
+    # ========================================================
+
+    left, right = st.columns([0.82, 1.18], gap="large")
+
+    # --------------------------------------------------------
+    # LEFT COLUMN : INPUT
+    # --------------------------------------------------------
+
     with left:
-        card("Your input", "Use decimal degrees. No coordinate is pre-filled, because pretending a random coordinate is meaningful is not analysis.")
-        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=None, step=0.01, format="%.4f", key="lookup_lat")
-        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=None, step=0.01, format="%.4f", key="lookup_lon")
-        check = st.button("Check coordinate", width="stretch", type="primary")
-        st.markdown('<div class="small-muted">Study window: −40° to 30° latitude · 20° to 120° longitude</div>', unsafe_allow_html=True)
+
+        card(
+            "Your input",
+            "Use decimal degrees. The fields start at the study-window boundary and can be edited before checking the coordinate."
+        )
+
+        lat = st.number_input(
+            "Latitude",
+            min_value=float(LAT_MIN),
+            max_value=float(LAT_MAX),
+            value=float(LAT_MIN),
+            step=0.01,
+            format="%.4f",
+            key="lookup_lat",
+        )
+
+        lon = st.number_input(
+            "Longitude",
+            min_value=float(LON_MIN),
+            max_value=float(LON_MAX),
+            value=float(LON_MIN),
+            step=0.01,
+            format="%.4f",
+            key="lookup_lon",
+        )
+
+        check = st.button(
+            "Check coordinate",
+            width="stretch",
+            type="primary"
+        )
+
+        st.markdown(
+            f"""
+            <div class="small-muted">
+                Study window: {LAT_MIN:.0f}° to {LAT_MAX:.0f}° latitude
+                · {LON_MIN:.0f}° to {LON_MAX:.0f}° longitude
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # --------------------------------------------------------
+    # FIND COORDINATE
+    # --------------------------------------------------------
+
+    row = None
+    separation = None
+    lookup_error = None
+
+    if check:
+
+        if not (
+            LAT_MIN <= float(lat) <= LAT_MAX
+            and LON_MIN <= float(lon) <= LON_MAX
+        ):
+            lookup_error = (
+                f"This coordinate is outside the study window: "
+                f"{LAT_MIN}° to {LAT_MAX}° latitude and "
+                f"{LON_MIN}° to {LON_MAX}° longitude."
+            )
+
+        else:
+            row, separation = nearest_ocean_cell(
+                float(lat),
+                float(lon)
+            )
+
+            if row is None:
+                lookup_error = (
+                    "No valid processed ocean cell is available "
+                    "for this lookup."
+                )
+
+    # --------------------------------------------------------
+    # RIGHT COLUMN : RESULT
+    # --------------------------------------------------------
 
     with right:
+
         if not check:
-            card("Nearest processed ocean cell", "Enter both coordinates and run the lookup. Results will appear here without inventing a default location.")
-        elif lat is None or lon is None:
-            st.warning("Enter both latitude and longitude before checking the coordinate.")
-        elif not (LAT_MIN <= float(lat) <= LAT_MAX and LON_MIN <= float(lon) <= LON_MAX):
-            st.error(f"This coordinate is outside the study window: {LAT_MIN}° to {LAT_MAX}° latitude and {LON_MIN}° to {LON_MAX}° longitude.")
+
+            card(
+                "Nearest processed ocean cell",
+                "Enter a coordinate and run the lookup. Results will appear here using only processed dataset observations."
+            )
+
+        elif lookup_error:
+
+            st.error(lookup_error)
+
         else:
-            row, separation = nearest_ocean_cell(float(lat), float(lon))
-            if row is None:
-                st.error("No valid processed ocean cell is available for this lookup.")
+
+            flagged = bool(row.risk_flag)
+
+            card(
+                "Nearest processed ocean cell",
+                f"""
+                <b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>
+                Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>
+                Approximate angular separation: {separation:.2f}°
+                """
+            )
+
+            # ------------------------------------------------
+            # OBSERVATION DETAILS
+            # ------------------------------------------------
+
+            a, b = st.columns(2)
+
+            with a:
+                metric(
+                    "Observation date",
+                    fmt_date(row.date),
+                    "nearest valid cell"
+                )
+
+            with b:
+                metric(
+                    "Chlorophyll-a",
+                    fmt_num(row.chla),
+                    "processed observation"
+                )
+
+            c, d = st.columns(2)
+
+            with c:
+
+                prob = row.get(
+                    "risk_probability",
+                    np.nan
+                )
+
+                metric(
+                    "Screening probability",
+                    (
+                        f"{float(prob):.1%}"
+                        if pd.notna(prob)
+                        else "Unavailable"
+                    ),
+                    "stored model output"
+                )
+
+            with d:
+
+                metric(
+                    "Screening status",
+                    "Potential risk" if flagged else "Not flagged",
+                    "latest field"
+                )
+
+            # ------------------------------------------------
+            # SCREENING STATUS
+            # ------------------------------------------------
+
+            if flagged:
+
+                st.markdown(
+                    """
+                    <div class="status status-risk">
+                        <div class="status-title">
+                            🔴 Potential bloom-risk screening
+                        </div>
+                        This processed cell is included in the latest
+                        potential-risk screening output.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
             else:
-                flagged = bool(row.risk_flag)
-                card("Nearest processed ocean cell", f"<b>{row.latitude:.4f}° · {row.longitude:.4f}°</b><br>Your input: {float(lat):.4f}° · {float(lon):.4f}°<br>Approximate angular separation: {separation:.2f}°")
-                a, b = st.columns(2)
-                with a: metric("Observation date", fmt_date(row.date), "nearest valid cell")
-                with b: metric("Chlorophyll-a", fmt_num(row.chla), "processed observation")
-                c, d = st.columns(2)
-                with c:
-                    prob = row.get("risk_probability", np.nan)
-                    metric("Screening probability", f"{float(prob):.1%}" if pd.notna(prob) else "Unavailable", "stored model output")
-                with d: metric("Screening status", "Potential risk" if flagged else "Not flagged", "latest field")
 
-                if flagged:
-                    st.markdown('<div class="status status-risk"><div class="status-title">🔴 Potential bloom-risk screening</div>This processed cell is included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="status status-ok"><div class="status-title">🟢 Not flagged</div>This valid processed ocean cell is not included in the latest potential-risk screening output.</div>', unsafe_allow_html=True)
+                st.markdown(
+                    """
+                    <div class="status status-ok">
+                        <div class="status-title">
+                            🟢 Not flagged
+                        </div>
+                        This valid processed ocean cell is not included
+                        in the latest potential-risk screening output.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-                st.markdown('<div class="section-label">Supporting signals</div>', unsafe_allow_html=True)
-                values = [
-                    ("Current Chl-a", row.get("chla", np.nan)),
-                    ("Historical baseline", row.get("historical_baseline", np.nan)),
-                    ("Anomaly", row.get("chla_anomaly", np.nan)),
-                    ("Recent change", row.get("chla_change", np.nan)),
-                ]
-                cols = st.columns(4)
-                for col, (label, value) in zip(cols, values):
-                    with col:
-                        metric(label, fmt_num(value), "available signal")
+    # ========================================================
+    # SUPPORTING SIGNALS
+    # Placed below the two-column top section so the left side
+    # is no longer a giant empty space.
+    # ========================================================
 
-                # Only show a history chart when actual history exists for this coordinate.
-                if history_available:
-                    hlat = float(row.latitude)
-                    hlon = float(row.longitude)
-                    same = history[
-                        ((history.lat_bin - hlat).abs() <= 1.0)
-                        & ((history.lon_bin - hlon).abs() <= 1.0)
-                    ].copy()
-                    if not same.empty:
-                        trend = same.groupby("date", as_index=False).chla.mean().sort_values("date")
-                        if len(trend) >= 2:
-                            st.markdown('<div class="section-label">Location history</div>', unsafe_allow_html=True)
-                            fig = px.line(trend, x="date", y="chla", markers=True)
-                            fig.update_layout(
-                                height=320, margin=dict(l=50, r=20, t=20, b=50),
-                                paper_bgcolor="white", plot_bgcolor="white",
-                                font=dict(family="DM Sans", color="#0b3e49"),
-                                xaxis_title="Observation date", yaxis_title="Mean Chl-a",
+    if check and row is not None and lookup_error is None:
+
+        st.markdown(
+            '<div class="section-label">Supporting signals</div>',
+            unsafe_allow_html=True
+        )
+
+        values = [
+            (
+                "Current Chl-a",
+                row.get("chla", np.nan)
+            ),
+            (
+                "Historical baseline",
+                row.get("historical_baseline", np.nan)
+            ),
+            (
+                "Anomaly",
+                row.get("chla_anomaly", np.nan)
+            ),
+            (
+                "Recent change",
+                row.get("chla_change", np.nan)
+            ),
+        ]
+
+        signal_cols = st.columns(4, gap="medium")
+
+        for col, (label, value) in zip(signal_cols, values):
+
+            with col:
+
+                metric(
+                    label,
+                    fmt_num(value),
+                    "available signal"
+                )
+
+    # ========================================================
+    # LOCATION HISTORY
+    # Full-width so the graph is not squeezed into the
+    # right-hand column.
+    # ========================================================
+
+    if (
+        check
+        and row is not None
+        and lookup_error is None
+        and history_available
+    ):
+
+        hlat = float(row.latitude)
+        hlon = float(row.longitude)
+
+        # IMPORTANT:
+        # Parentheses prevent pandas '&' precedence problems.
+        same = history[
+            (
+                (history.lat_bin - hlat).abs() <= 1.0
+            )
+            &
+            (
+                (history.lon_bin - hlon).abs() <= 1.0
+            )
+        ].copy()
+
+        if not same.empty:
+
+            trend = (
+                same
+                .groupby("date", as_index=False)
+                .chla
+                .mean()
+                .sort_values("date")
+            )
+
+            if len(trend) >= 2:
+
+                st.markdown(
+                    '<div class="section-label">Location history</div>',
+                    unsafe_allow_html=True
+                )
+
+                # ------------------------------------------------
+                # FULL-WIDTH HISTORY CHART
+                # ------------------------------------------------
+
+                fig = px.line(
+                    trend,
+                    x="date",
+                    y="chla",
+                    markers=True,
+                )
+
+                fig.update_traces(
+                    line=dict(
+                        color="#78BDF2",
+                        width=3
+                    ),
+                    marker=dict(
+                        size=7,
+                        color="#78BDF2"
+                    ),
+                    hovertemplate=(
+                        "<b>%{x|%d %b %Y}</b>"
+                        "<br>Mean Chl-a: %{y:.4f}"
+                        "<extra></extra>"
+                    ),
+                )
+
+                fig.update_layout(
+                    height=360,
+
+                    margin=dict(
+                        l=65,
+                        r=25,
+                        t=20,
+                        b=65
+                    ),
+
+                    paper_bgcolor="white",
+                    plot_bgcolor="white",
+
+                    font=dict(
+                        family="DM Sans",
+                        color="#0B3E49"
+                    ),
+
+                    # --------------------------------------------
+                    # X AXIS
+                    # --------------------------------------------
+
+                    xaxis=dict(
+                        title=dict(
+                            text="Observation date",
+                            font=dict(
+                                color="#111111",
+                                size=14
                             )
-                            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+                        ),
 
-                st.markdown('<div class="callout"><strong>Scientific boundary:</strong> this lookup is a satellite screening aid. It cannot independently establish harmfulness, species identity, toxin presence or ecological impact.</div>', unsafe_allow_html=True)
+                        tickfont=dict(
+                            color="#111111",
+                            size=12
+                        ),
+
+                        showline=True,
+                        linecolor="#111111",
+                        linewidth=1.5,
+
+                        showgrid=True,
+                        gridcolor="#E5E7EB",
+
+                        zeroline=False,
+                    ),
+
+                    # --------------------------------------------
+                    # Y AXIS
+                    # --------------------------------------------
+
+                    yaxis=dict(
+                        title=dict(
+                            text="Mean Chl-a",
+                            font=dict(
+                                color="#111111",
+                                size=14
+                            )
+                        ),
+
+                        tickfont=dict(
+                            color="#111111",
+                            size=12
+                        ),
+
+                        showline=True,
+                        linecolor="#111111",
+                        linewidth=1.5,
+
+                        showgrid=True,
+                        gridcolor="#E5E7EB",
+
+                        zeroline=False,
+                    ),
+
+                    hoverlabel=dict(
+                        bgcolor="white",
+                        font=dict(
+                            color="#0B3E49"
+                        )
+                    ),
+                )
+
+                st.plotly_chart(
+                    fig,
+                    width="stretch",
+                    config={
+                        "displaylogo": False,
+                        "responsive": True
+                    }
+                )
+
+    # ========================================================
+    # SCIENTIFIC BOUNDARY
+    # ========================================================
+
+    if check and row is not None and lookup_error is None:
+
+        st.markdown(
+            """
+            <div class="callout">
+                <strong>Scientific boundary:</strong>
+                this lookup is a satellite screening aid. It cannot
+                independently establish harmfulness, species identity,
+                toxin presence or ecological impact.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ========================================================
+    # FOOTER
+    # ========================================================
 
     footer()
+
 
 # ============================================================
 # INSIGHTS
@@ -732,7 +1100,24 @@ elif st.session_state.page == "insights":
         zone = zone.nlargest(10, "cells").sort_values("cells")
         fig = px.bar(zone, x="cells", y="zone", orientation="h", text="cells")
         fig.update_traces(marker_color="#e84e5d", textposition="outside")
-        fig.update_layout(height=430, margin=dict(l=150, r=35, t=20, b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white", xaxis_title="Potential-risk screening cells", yaxis_title="")
+        fig.update_layout(
+            height=430,
+            margin=dict(l=150, r=45, t=20, b=60),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="white",
+            font=dict(family="DM Sans", color="#0b3e49"),
+            showlegend=False,
+            xaxis=dict(
+                title=dict(text="Potential-risk screening cells", font=dict(color="#0b3e49", size=13)),
+                tickfont=dict(color="#0b3e49", size=11),
+                gridcolor="#d7e9ea",
+                zerolinecolor="#9fcbd0",
+            ),
+            yaxis=dict(
+                title=dict(text="", font=dict(color="#0b3e49")),
+                tickfont=dict(color="#0b3e49", size=11),
+            ),
+        )
         st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     else:
         st.info("No potential-risk cells are present in the latest field, so there is no concentration chart to fabricate.")
@@ -745,7 +1130,25 @@ elif st.session_state.page == "insights":
         if not valid.empty:
             fig = px.histogram(valid, nbins=45)
             fig.update_traces(marker_color="#2387aa")
-            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chlorophyll-a", yaxis_title="Cells")
+            fig.update_layout(
+                height=360,
+                margin=dict(l=55, r=15, t=18, b=58),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="DM Sans", color="#0b3e49"),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(text="Chlorophyll-a", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                ),
+            )
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     with b:
         card("Recent Chl-a change", "The distribution of change relative to the previous observation, where that field exists.")
@@ -754,7 +1157,25 @@ elif st.session_state.page == "insights":
             fig = px.histogram(change, nbins=45)
             fig.update_traces(marker_color="#22a878")
             fig.add_vline(x=CHANGE_THRESHOLD, line_dash="dash", line_color="#d8952e")
-            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chl-a change", yaxis_title="Cells")
+            fig.update_layout(
+                height=360,
+                margin=dict(l=55, r=15, t=18, b=58),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="DM Sans", color="#0b3e49"),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(text="Chl-a change", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                ),
+            )
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
         else:
             st.info("Recent-change values are not present in the latest field.")
@@ -804,98 +1225,7 @@ elif st.session_state.page == "insights":
         "Risk_share": "Risk share (%)",
     }).round(4), width="stretch", hide_index=True)
 
-    # ========================================================
-    # NEW: OCEAN APPLICATIONS
-    # These are intentionally kept inside Insights so the existing
-    # five-page navigation and every current view remain unchanged.
-    # ========================================================
-    st.markdown('<div class="section-label">Ocean applications</div>', unsafe_allow_html=True)
-    st.markdown('<div class="callout"><strong>Beyond bloom screening:</strong> the same satellite-derived Chl-a field can support additional environmental screening tasks. These layers are analytical extensions, not additional ML models.</div>', unsafe_allow_html=True)
-
-    # 1. Productivity zones
-    high_prod, very_high_prod, q75, q90 = productivity_layers(latest)
-    p1, p2, p3 = st.columns(3)
-    with p1:
-        metric("High-productivity cells", f"{len(high_prod):,}", "top 25% Chl-a")
-    with p2:
-        metric("Very-high productivity", f"{len(very_high_prod):,}", "top 10% Chl-a")
-    with p3:
-        metric("Top-10% threshold", fmt_num(q90), "Chl-a")
-
-    a1, a2 = st.columns(2, gap="large")
-    with a1:
-        card("🌱 Productivity zones", "Screens the strongest Chl-a concentration zones in the latest field. These can support marine productivity and ecological investigation without claiming fish abundance.")
-        prod_plot = high_prod.copy()
-        if len(prod_plot) > 6000:
-            prod_plot = prod_plot.sample(6000, random_state=42)
-        if not prod_plot.empty:
-            fig = go.Figure()
-            fig.add_trace(go.Scattergeo(
-                lon=latest["longitude"], lat=latest["latitude"], mode="markers",
-                name="Processed field", marker=dict(size=3, color="#7fb9c9", opacity=.20),
-                hovertemplate="Processed cell<extra></extra>",
-            ))
-            fig.add_trace(go.Scattergeo(
-                lon=prod_plot["longitude"], lat=prod_plot["latitude"], mode="markers",
-                name="High productivity", marker=dict(size=5, color="#22a878", opacity=.72),
-                customdata=np.c_[prod_plot["chla"]],
-                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<extra></extra>",
-            ))
-            fig.update_geos(**geo_style())
-            fig.update_layout(height=410, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="#eaf8f8", plot_bgcolor="#eaf8f8", font=dict(family="DM Sans", color="#123f49"), legend=dict(orientation="h", y=.01, x=.02))
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
-
-    # 2. Chl-a fronts
-    with a2:
-        front = chla_front_layer(latest)
-        card("〰 Chl-a front screening", "Highlights the strongest local spatial Chl-a gradients. It identifies transition zones in the observed concentration field, not measured ocean currents.")
-        if not front.empty:
-            front_plot = front.head(2500)
-            fig = go.Figure()
-            fig.add_trace(go.Scattergeo(
-                lon=front_plot["longitude"], lat=front_plot["latitude"], mode="markers",
-                name="Strong Chl-a transition", marker=dict(size=5.5, color="#d8952e", opacity=.80),
-                customdata=np.c_[front_plot["chla"], front_plot["chla_gradient"]],
-                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<br>Gradient %{customdata[1]:.4f}<extra></extra>",
-            ))
-            fig.update_geos(**geo_style())
-            fig.update_layout(height=410, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="#eaf8f8", plot_bgcolor="#eaf8f8", font=dict(family="DM Sans", color="#123f49"), showlegend=False)
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
-            st.caption(f"Strongest 1% of local Chl-a gradients. Maximum detected gradient: {fmt_num(front.chla_gradient.max())}.")
-        else:
-            st.info("A stable spatial grid is required to compute the Chl-a transition layer for this field.")
-
-    # 3. Seasonal intelligence
-    season = seasonal_summary(history) if history_available else pd.DataFrame()
-    s1, s2 = st.columns(2, gap="large")
-    with s1:
-        card("📅 Seasonal intelligence", "Separates recurring monthly behaviour from a single observation. This uses the compact historical layer when it is available.")
-        if not season.empty:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=season["month_name"], y=season["mean_chla"], mode="lines+markers", name="Mean Chl-a", line=dict(color="#2387aa", width=3)))
-            fig.update_layout(height=340, margin=dict(l=55,r=20,t=20,b=50), paper_bgcolor="white", plot_bgcolor="white", font=dict(family="DM Sans", color="#123f49"), xaxis_title="Month", yaxis_title="Mean Chl-a", legend=dict(orientation="h", y=1.08, x=0))
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-        else:
-            st.info("Seasonal intelligence becomes available when the compact historical observation layer is deployed.")
-
-    # 4. Marine-resource investigation support
-    with s2:
-        resource = high_prod.copy()
-        if not resource.empty:
-            resource = resource[~resource["risk_flag"]].copy()
-            resource = resource.sort_values("chla", ascending=False).head(12)
-        card("🎣 Marine-resource investigation support", "Shortlists high-productivity cells that are not currently flagged by the bloom-risk screen. This is a candidate-area layer for investigation, not a fish-location prediction.")
-        if not resource.empty:
-            table = pd.DataFrame({
-                "Location": resource.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1),
-                "Chl-a": resource["chla"].round(4),
-            })
-            st.dataframe(table, width="stretch", hide_index=True)
-            st.markdown(f'<div class="callout"><strong>Candidate cells:</strong> {len(resource):,} high-productivity locations remain after excluding current potential-risk screening cells.</div>', unsafe_allow_html=True)
-        else:
-            st.info("No non-flagged high-productivity cells are available in the current field.")
-
-    st.markdown('<div class="callout"><strong>Scientific caution:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins, measure ocean currents, or confirm fish presence or a harmful algal bloom.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="callout"><strong>Scientific caution:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins and do not confirm a harmful algal bloom.</div>', unsafe_allow_html=True)
     footer()
 
 # ============================================================
