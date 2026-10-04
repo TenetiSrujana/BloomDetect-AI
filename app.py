@@ -413,76 +413,88 @@ def nearest_ocean_cell(lat, lon):
     return row, separation
 
 
-
-def productivity_zones(frame):
-    x = frame.dropna(subset=["latitude", "longitude", "chla"]).copy()
-    x = x[x["chla"] > 0].copy()
-    if x.empty:
-        return pd.DataFrame(), np.nan, np.nan
-    p75 = float(x["chla"].quantile(0.75))
-    p90 = float(x["chla"].quantile(0.90))
-    x["productivity_band"] = np.select(
-        [x["chla"] >= p90, x["chla"] >= p75],
-        ["Very high signal", "High signal"],
-        default="Background field",
-    )
-    return x, p75, p90
-
-
-def chlorophyll_fronts(frame):
-    x = frame.dropna(subset=["latitude", "longitude", "chla"]).copy()
-    if x.empty:
-        return pd.DataFrame()
-    # OCM grid is treated as a regular field for a lightweight local-gradient screen.
-    lat_vals = np.sort(x["latitude"].unique())
-    lon_vals = np.sort(x["longitude"].unique())
-    if len(lat_vals) < 3 or len(lon_vals) < 3:
-        return pd.DataFrame()
-    lat_step = float(np.median(np.diff(lat_vals)))
-    lon_step = float(np.median(np.diff(lon_vals)))
-    if not np.isfinite(lat_step) or not np.isfinite(lon_step) or lat_step <= 0 or lon_step <= 0:
-        return pd.DataFrame()
-
-    base = x[["latitude", "longitude", "chla"]].copy()
-    north = base.rename(columns={"latitude":"latitude_n", "chla":"chla_n"})
-    north["latitude"] = north["latitude_n"] - lat_step
-    east = base.rename(columns={"longitude":"longitude_e", "chla":"chla_e"})
-    east["longitude"] = east["longitude_e"] - lon_step
-
-    out = base.merge(north[["latitude", "longitude", "chla_n"]], on=["latitude", "longitude"], how="left")
-    out = out.merge(east[["latitude", "longitude", "chla_e"]], on=["latitude", "longitude"], how="left")
-    out["gradient"] = np.sqrt(
-        ((out["chla"] - out["chla_n"]) / lat_step) ** 2
-        + ((out["chla"] - out["chla_e"]) / lon_step) ** 2
-    )
-    out = out.replace([np.inf, -np.inf], np.nan).dropna(subset=["gradient"])
-    if out.empty:
-        return out
-    cutoff = float(out["gradient"].quantile(0.99))
-    out = out[out["gradient"] >= cutoff].copy()
-    out["front_rank"] = out["gradient"].rank(method="first", ascending=False).astype(int)
-    return out.sort_values("gradient", ascending=False)
-
-
-def seasonal_summary(hist):
-    if hist is None or hist.empty:
-        return pd.DataFrame()
-    x = hist.copy()
-    x["month"] = x["date"].dt.month
-    out = x.groupby("month", as_index=False).agg(
-        mean_chla=("chla", "mean"),
-        max_chla=("chla", "max"),
-        risk_rate=("risk", "mean"),
-        observations=("chla", "size"),
-    )
-    out["risk_rate"] *= 100
-    out["Month"] = pd.to_datetime(out["month"], format="%m").dt.strftime("%b")
-    return out
-
 def go_to(page):
     st.session_state.page = page
     st.rerun()
 
+
+# ============================================================
+# OCEAN APPLICATION ANALYSIS
+# ============================================================
+
+def productivity_layers(frame):
+    """Return high and very-high Chl-a productivity screening layers."""
+    work = frame[["latitude", "longitude", "chla", "risk_flag"]].copy()
+    work = work.replace([np.inf, -np.inf], np.nan).dropna(subset=["latitude", "longitude", "chla"])
+    work = work[work["chla"] > 0].copy()
+    if work.empty:
+        return work, work, np.nan, np.nan
+    q75 = float(work["chla"].quantile(0.75))
+    q90 = float(work["chla"].quantile(0.90))
+    return work[work["chla"] >= q75].copy(), work[work["chla"] >= q90].copy(), q75, q90
+
+
+def chla_front_layer(frame):
+    """Estimate strong local Chl-a gradients from the processed spatial field.
+
+    This is a spatial signal derived from Chl-a only. It is not a current/front
+    velocity product and must not be interpreted as measured ocean circulation.
+    """
+    cols = ["latitude", "longitude", "chla"]
+    work = frame[cols].replace([np.inf, -np.inf], np.nan).dropna().copy()
+    work = work[work["chla"] > 0].copy()
+    if work.empty:
+        return work
+
+    # Aggregate duplicate cells before pivoting.
+    grid = work.groupby(["latitude", "longitude"], as_index=False)["chla"].mean()
+    pivot = grid.pivot(index="latitude", columns="longitude", values="chla").sort_index().sort_index(axis=1)
+    if pivot.shape[0] < 3 or pivot.shape[1] < 3:
+        return pd.DataFrame(columns=cols + ["chla_gradient"])
+
+    arr = pivot.to_numpy(dtype=float)
+    arr = pd.DataFrame(arr).interpolate(axis=0, limit_direction="both").interpolate(axis=1, limit_direction="both").to_numpy()
+    if not np.isfinite(arr).any():
+        return pd.DataFrame(columns=cols + ["chla_gradient"])
+
+    lat_vals = pivot.index.to_numpy(dtype=float)
+    lon_vals = pivot.columns.to_numpy(dtype=float)
+    dlat = float(np.nanmedian(np.diff(lat_vals))) if len(lat_vals) > 1 else 1.0
+    dlon = float(np.nanmedian(np.diff(lon_vals))) if len(lon_vals) > 1 else 1.0
+    dlat = abs(dlat) if abs(dlat) > 1e-9 else 1.0
+    dlon = abs(dlon) if abs(dlon) > 1e-9 else 1.0
+
+    gy, gx = np.gradient(arr, dlat, dlon)
+    gradient = np.sqrt(gx ** 2 + gy ** 2)
+    out = pd.DataFrame({
+        "latitude": np.repeat(lat_vals, len(lon_vals)),
+        "longitude": np.tile(lon_vals, len(lat_vals)),
+        "chla": arr.ravel(),
+        "chla_gradient": gradient.ravel(),
+    })
+    out = out.replace([np.inf, -np.inf], np.nan).dropna(subset=["chla_gradient"])
+    if out.empty:
+        return out
+    threshold = float(out["chla_gradient"].quantile(0.99))
+    out = out[out["chla_gradient"] >= threshold].copy()
+    return out.sort_values("chla_gradient", ascending=False)
+
+
+def seasonal_summary(history_frame):
+    """Create monthly Chl-a and historical screening summaries."""
+    if history_frame is None or history_frame.empty:
+        return pd.DataFrame()
+    h = history_frame.copy()
+    h["month"] = h["date"].dt.month
+    h["month_name"] = h["date"].dt.strftime("%b")
+    summary = h.groupby(["month", "month_name"], as_index=False).agg(
+        mean_chla=("chla", "mean"),
+        max_chla=("chla", "max"),
+        screening_rate=("risk", "mean"),
+        observations=("chla", "size"),
+    )
+    summary["screening_rate"] = summary["screening_rate"] * 100
+    return summary.sort_values("month")
 
 # ============================================================
 # HEADER / NAVIGATION
@@ -529,7 +541,7 @@ if st.session_state.page == "home":
             '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
         )
         st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="card-title">Beyond bloom detection</div><div class="card-copy">The project now adds four research lenses inside <b>Insights</b>: <b>Productivity Zones</b>, <b>Chl-a Fronts</b>, <b>Seasonal Intelligence</b>, and <b>Marine Resource Support</b>. They reuse the satellite field for different real-world decisions instead of creating four copies of the same chart.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>', unsafe_allow_html=True)
     with right:
         if IMAGE_FILE.exists():
             st.image(str(IMAGE_FILE), width="stretch", caption="Satellite ocean-colour observations supporting bloom-risk investigation")
@@ -695,7 +707,7 @@ elif st.session_state.page == "insights":
     page_head(
         "03 · OCEAN INTELLIGENCE",
         "Find the patterns that matter.",
-        "BloomDetect now goes beyond a single bloom-risk flag: the same satellite field is used to screen productivity zones, chlorophyll fronts, seasonal behaviour and marine-resource investigation areas.",
+        "The latest processed field is summarized through spatial concentration, Chl-a distribution, change and current screening priorities. Each chart answers a different question and uses only stored project data.",
     )
 
     change_series = pd.to_numeric(latest.get("chla_change", pd.Series(index=latest.index, dtype=float)), errors="coerce")
@@ -709,7 +721,8 @@ elif st.session_state.page == "insights":
     with c3: metric("Anomalous cells", f"{anomaly_count:,}", f"anomaly ≥ {ANOMALY_THRESHOLD:.4f}")
     with c4: metric("Normal screening field", f"{max(len(latest)-len(risk_latest),0):,}", "not currently flagged")
 
-    st.markdown('<div class="section-label">Spatial screening</div>', unsafe_allow_html=True)
+    # Spatial concentration
+    st.markdown('<div class="section-label">Spatial concentration</div>', unsafe_allow_html=True)
     if not risk_latest.empty:
         zone = risk_latest.copy()
         zone["lat_zone"] = np.floor(zone.latitude / 5) * 5
@@ -721,116 +734,10 @@ elif st.session_state.page == "insights":
         fig.update_traces(marker_color="#e84e5d", textposition="outside")
         fig.update_layout(height=430, margin=dict(l=150, r=35, t=20, b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white", xaxis_title="Potential-risk screening cells", yaxis_title="")
         st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+    else:
+        st.info("No potential-risk cells are present in the latest field, so there is no concentration chart to fabricate.")
 
-    # ========================================================
-    # NEW APPLICATION LAYER
-    # ========================================================
-    st.markdown('<div class="section-label">New ocean applications</div>', unsafe_allow_html=True)
-    st.markdown("### One dataset. Four different decisions.")
-    st.caption("These are derived analytical views, not additional satellite products. They use the current OCM-3 chlorophyll field and the compact project history.")
-
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🌱 Productivity Zones",
-        "〰 Chl-a Fronts",
-        "📅 Seasonal Intelligence",
-        "🎣 Marine Resource Support",
-    ])
-
-    with tab1:
-        prod, p75, p90 = productivity_zones(latest)
-        if prod.empty:
-            st.info("No positive chlorophyll observations are available for productivity screening.")
-        else:
-            high = prod[prod["chla"] >= p75].copy()
-            very = prod[prod["chla"] >= p90].copy()
-            a,b,c = st.columns(3)
-            with a: metric("High-signal cells", f"{len(high):,}", "top 25% Chl-a")
-            with b: metric("Very-high cells", f"{len(very):,}", "top 10% Chl-a")
-            with c: metric("High-signal threshold", fmt_num(p75), "dataset percentile")
-
-            plot = prod[prod["chla"] >= p75].copy()
-            if len(plot) > 12000:
-                plot = plot.nlargest(12000, "chla")
-            fig = go.Figure(go.Scattergeo(
-                lon=plot.longitude, lat=plot.latitude, mode="markers",
-                marker=dict(size=5, color=plot.chla, colorscale="YlGn", opacity=.72, colorbar=dict(title="Chl-a")),
-                customdata=np.c_[plot.chla],
-                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<extra></extra>",
-                name="High-signal productivity zone",
-            ))
-            fig.update_geos(**geo_style())
-            fig.update_layout(height=500, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor="#e4f7f8", plot_bgcolor="#e4f7f8")
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-            st.markdown('<div class="callout"><strong>Use:</strong> high-signal zones can support marine productivity research and prioritise areas for ecological or fisheries investigation. They do <b>not</b> mean fish abundance is high and do not replace fishery surveys.</div>', unsafe_allow_html=True)
-
-    with tab2:
-        fronts = chlorophyll_fronts(latest)
-        if fronts.empty:
-            st.info("A stable local Chl-a gradient could not be calculated from the current field.")
-        else:
-            a,b,c = st.columns(3)
-            with a: metric("Detected front cells", f"{len(fronts):,}", "top 1% local gradient")
-            with b: metric("Strongest gradient", fmt_num(fronts.gradient.iloc[0]), "relative Chl-a / degree")
-            with c: metric("Grid step", f"~{abs(float(np.median(np.diff(np.sort(latest.latitude.unique()))))):.2f}°", "latitude spacing")
-            fp = fronts.head(3000)
-            fig = go.Figure(go.Scattergeo(
-                lon=fp.longitude, lat=fp.latitude, mode="markers",
-                marker=dict(size=5, color=fp.gradient, colorscale="Turbo", opacity=.8, colorbar=dict(title="Gradient")),
-                customdata=np.c_[fp.gradient, fp.chla],
-                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Gradient %{customdata[0]:.4f}<br>Chl-a %{customdata[1]:.4f}<extra></extra>",
-                name="Chl-a front candidates",
-            ))
-            fig.update_geos(**geo_style())
-            fig.update_layout(height=500, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor="#e4f7f8", plot_bgcolor="#e4f7f8")
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-            top = fronts.head(10).copy()
-            top["Location"] = top.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1)
-            st.dataframe(top[["Location","chla","gradient"]].rename(columns={"chla":"Chl-a","gradient":"Relative gradient"}).round(4), width="stretch", hide_index=True)
-            st.markdown('<div class="callout"><strong>Why this matters:</strong> sharp Chl-a transitions can indicate boundaries between different water masses or productivity regimes. This is a screening of the satellite field, not a direct current or fish-front measurement.</div>', unsafe_allow_html=True)
-
-    with tab3:
-        ss = seasonal_summary(history) if history_available else pd.DataFrame()
-        if ss.empty:
-            st.info("Seasonal intelligence needs the compact historical observation layer.")
-        else:
-            fig = go.Figure()
-            fig.add_trace(go.Bar(x=ss.Month, y=ss.mean_chla, name="Mean Chl-a", marker_color="#2387aa"))
-            fig.add_trace(go.Scatter(x=ss.Month, y=ss.risk_rate, name="Risk-screening rate (%)", yaxis="y2", mode="lines+markers", line=dict(color="#e84e5d", width=3)))
-            fig.update_layout(
-                height=420, margin=dict(l=55,r=65,t=20,b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white",
-                xaxis_title="Month", yaxis_title="Mean Chl-a",
-                yaxis2=dict(title="Risk-screening rate (%)", overlaying="y", side="right"),
-                legend=dict(orientation="h", y=1.08, x=0),
-            )
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-            best = ss.sort_values("mean_chla", ascending=False).iloc[0]
-            risk_month = ss.sort_values("risk_rate", ascending=False).iloc[0]
-            st.markdown(f'<div class="callout"><strong>Seasonal signal:</strong> the highest average Chl-a month in the available history is <b>{best.Month}</b>, while the highest screening-rate month is <b>{risk_month.Month}</b>. This helps distinguish recurring seasonal behaviour from isolated observations.</div>', unsafe_allow_html=True)
-
-    with tab4:
-        prod, p75, p90 = productivity_zones(latest)
-        if prod.empty:
-            st.info("Marine-resource support cannot be calculated without positive Chl-a observations.")
-        else:
-            candidate = prod[prod["chla"] >= p75].copy()
-            candidate["risk_flag"] = candidate["risk_flag"].astype(bool)
-            # Prefer high productivity with no current risk flag as a conservative investigation shortlist.
-            candidate["Support class"] = np.where(candidate.risk_flag, "High productivity · also flagged", "High productivity · not flagged")
-            summary = candidate.groupby("Support class", as_index=False).agg(
-                Cells=("chla","size"), Mean_Chl_a=("chla","mean"), Max_Chl_a=("chla","max")
-            )
-            summary["Mean_Chl_a"] = summary["Mean_Chl_a"].round(4)
-            summary["Max_Chl_a"] = summary["Max_Chl_a"].round(4)
-            st.dataframe(summary.rename(columns={"Mean_Chl_a":"Mean Chl-a","Max_Chl_a":"Max Chl-a"}), width="stretch", hide_index=True)
-            good = candidate[~candidate.risk_flag].nlargest(12, "chla").copy()
-            if not good.empty:
-                good["Location"] = good.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1)
-                st.markdown("#### High-productivity investigation shortlist")
-                st.dataframe(good[["Location","chla"]].rename(columns={"chla":"Chl-a"}).round(4), width="stretch", hide_index=True)
-            st.markdown('<div class="callout"><strong>Application:</strong> this shortlist highlights ocean cells with relatively high satellite-observed productivity signal while separating cells already flagged by BloomDetect. It is a <b>marine-resource investigation aid</b>, not a fish-location predictor.</div>', unsafe_allow_html=True)
-
-    # Existing evidence charts
-    st.markdown('<div class="section-label">Current field evidence</div>', unsafe_allow_html=True)
+    # Two genuinely different distributions
     a, b = st.columns(2, gap="large")
     with a:
         card("Chl-a distribution", "Distribution of valid positive chlorophyll-a observations in the latest field.")
@@ -838,7 +745,7 @@ elif st.session_state.page == "insights":
         if not valid.empty:
             fig = px.histogram(valid, nbins=45)
             fig.update_traces(marker_color="#2387aa")
-            fig.update_layout(height=340, margin=dict(l=55,r=15,t=15,b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chlorophyll-a", yaxis_title="Cells")
+            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chlorophyll-a", yaxis_title="Cells")
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     with b:
         card("Recent Chl-a change", "The distribution of change relative to the previous observation, where that field exists.")
@@ -847,9 +754,12 @@ elif st.session_state.page == "insights":
             fig = px.histogram(change, nbins=45)
             fig.update_traces(marker_color="#22a878")
             fig.add_vline(x=CHANGE_THRESHOLD, line_dash="dash", line_color="#d8952e")
-            fig.update_layout(height=340, margin=dict(l=55,r=15,t=15,b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chl-a change", yaxis_title="Cells")
+            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chl-a change", yaxis_title="Cells")
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+        else:
+            st.info("Recent-change values are not present in the latest field.")
 
+    # Screening priority table
     st.markdown('<div class="section-label">Current screening priorities</div>', unsafe_allow_html=True)
     if not risk_latest.empty:
         sort_col = "risk_probability" if "risk_probability" in risk_latest.columns else "chla"
@@ -866,7 +776,126 @@ elif st.session_state.page == "insights":
     else:
         st.info("No current screening priorities are available in the latest field.")
 
-    st.markdown('<div class="callout"><strong>Scientific boundary:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins and do not confirm a harmful algal bloom.</div>', unsafe_allow_html=True)
+    # Regional summary is useful and is not a duplicate of the risk table.
+    st.markdown('<div class="section-label">Regional view</div>', unsafe_allow_html=True)
+    regional = latest.copy()
+    def region(lat, lon):
+        if lon >= 75 and lat >= 0:
+            return "Bay of Bengal"
+        if lon < 75 and lat >= -5:
+            return "Arabian Sea"
+        if lon >= 55 and lat < 0:
+            return "Southern Indian Ocean"
+        return "Northern Indian Ocean"
+    regional["Region"] = [region(a, b) for a, b in zip(regional.latitude, regional.longitude)]
+    summary = regional.groupby("Region").agg(
+        Processed_cells=("Region", "size"),
+        Potential_risk=("risk_flag", "sum"),
+        Mean_Chl_a=("chla", "mean"),
+        Maximum_Chl_a=("chla", "max"),
+    ).reset_index()
+    summary["Risk_share"] = summary.Potential_risk / summary.Processed_cells * 100
+    summary = summary.sort_values("Potential_risk", ascending=False)
+    st.dataframe(summary.rename(columns={
+        "Processed_cells": "Processed cells",
+        "Potential_risk": "Potential-risk cells",
+        "Mean_Chl_a": "Mean Chl-a",
+        "Maximum_Chl_a": "Maximum Chl-a",
+        "Risk_share": "Risk share (%)",
+    }).round(4), width="stretch", hide_index=True)
+
+    # ========================================================
+    # NEW: OCEAN APPLICATIONS
+    # These are intentionally kept inside Insights so the existing
+    # five-page navigation and every current view remain unchanged.
+    # ========================================================
+    st.markdown('<div class="section-label">Ocean applications</div>', unsafe_allow_html=True)
+    st.markdown('<div class="callout"><strong>Beyond bloom screening:</strong> the same satellite-derived Chl-a field can support additional environmental screening tasks. These layers are analytical extensions, not additional ML models.</div>', unsafe_allow_html=True)
+
+    # 1. Productivity zones
+    high_prod, very_high_prod, q75, q90 = productivity_layers(latest)
+    p1, p2, p3 = st.columns(3)
+    with p1:
+        metric("High-productivity cells", f"{len(high_prod):,}", "top 25% Chl-a")
+    with p2:
+        metric("Very-high productivity", f"{len(very_high_prod):,}", "top 10% Chl-a")
+    with p3:
+        metric("Top-10% threshold", fmt_num(q90), "Chl-a")
+
+    a1, a2 = st.columns(2, gap="large")
+    with a1:
+        card("🌱 Productivity zones", "Screens the strongest Chl-a concentration zones in the latest field. These can support marine productivity and ecological investigation without claiming fish abundance.")
+        prod_plot = high_prod.copy()
+        if len(prod_plot) > 6000:
+            prod_plot = prod_plot.sample(6000, random_state=42)
+        if not prod_plot.empty:
+            fig = go.Figure()
+            fig.add_trace(go.Scattergeo(
+                lon=latest["longitude"], lat=latest["latitude"], mode="markers",
+                name="Processed field", marker=dict(size=3, color="#7fb9c9", opacity=.20),
+                hovertemplate="Processed cell<extra></extra>",
+            ))
+            fig.add_trace(go.Scattergeo(
+                lon=prod_plot["longitude"], lat=prod_plot["latitude"], mode="markers",
+                name="High productivity", marker=dict(size=5, color="#22a878", opacity=.72),
+                customdata=np.c_[prod_plot["chla"]],
+                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<extra></extra>",
+            ))
+            fig.update_geos(**geo_style())
+            fig.update_layout(height=410, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="#eaf8f8", plot_bgcolor="#eaf8f8", font=dict(family="DM Sans", color="#123f49"), legend=dict(orientation="h", y=.01, x=.02))
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
+
+    # 2. Chl-a fronts
+    with a2:
+        front = chla_front_layer(latest)
+        card("〰 Chl-a front screening", "Highlights the strongest local spatial Chl-a gradients. It identifies transition zones in the observed concentration field, not measured ocean currents.")
+        if not front.empty:
+            front_plot = front.head(2500)
+            fig = go.Figure()
+            fig.add_trace(go.Scattergeo(
+                lon=front_plot["longitude"], lat=front_plot["latitude"], mode="markers",
+                name="Strong Chl-a transition", marker=dict(size=5.5, color="#d8952e", opacity=.80),
+                customdata=np.c_[front_plot["chla"], front_plot["chla_gradient"]],
+                hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<br>Gradient %{customdata[1]:.4f}<extra></extra>",
+            ))
+            fig.update_geos(**geo_style())
+            fig.update_layout(height=410, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor="#eaf8f8", plot_bgcolor="#eaf8f8", font=dict(family="DM Sans", color="#123f49"), showlegend=False)
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True})
+            st.caption(f"Strongest 1% of local Chl-a gradients. Maximum detected gradient: {fmt_num(front.chla_gradient.max())}.")
+        else:
+            st.info("A stable spatial grid is required to compute the Chl-a transition layer for this field.")
+
+    # 3. Seasonal intelligence
+    season = seasonal_summary(history) if history_available else pd.DataFrame()
+    s1, s2 = st.columns(2, gap="large")
+    with s1:
+        card("📅 Seasonal intelligence", "Separates recurring monthly behaviour from a single observation. This uses the compact historical layer when it is available.")
+        if not season.empty:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=season["month_name"], y=season["mean_chla"], mode="lines+markers", name="Mean Chl-a", line=dict(color="#2387aa", width=3)))
+            fig.update_layout(height=340, margin=dict(l=55,r=20,t=20,b=50), paper_bgcolor="white", plot_bgcolor="white", font=dict(family="DM Sans", color="#123f49"), xaxis_title="Month", yaxis_title="Mean Chl-a", legend=dict(orientation="h", y=1.08, x=0))
+            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+        else:
+            st.info("Seasonal intelligence becomes available when the compact historical observation layer is deployed.")
+
+    # 4. Marine-resource investigation support
+    with s2:
+        resource = high_prod.copy()
+        if not resource.empty:
+            resource = resource[~resource["risk_flag"]].copy()
+            resource = resource.sort_values("chla", ascending=False).head(12)
+        card("🎣 Marine-resource investigation support", "Shortlists high-productivity cells that are not currently flagged by the bloom-risk screen. This is a candidate-area layer for investigation, not a fish-location prediction.")
+        if not resource.empty:
+            table = pd.DataFrame({
+                "Location": resource.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1),
+                "Chl-a": resource["chla"].round(4),
+            })
+            st.dataframe(table, width="stretch", hide_index=True)
+            st.markdown(f'<div class="callout"><strong>Candidate cells:</strong> {len(resource):,} high-productivity locations remain after excluding current potential-risk screening cells.</div>', unsafe_allow_html=True)
+        else:
+            st.info("No non-flagged high-productivity cells are available in the current field.")
+
+    st.markdown('<div class="callout"><strong>Scientific caution:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins, measure ocean currents, or confirm fish presence or a harmful algal bloom.</div>', unsafe_allow_html=True)
     footer()
 
 # ============================================================
