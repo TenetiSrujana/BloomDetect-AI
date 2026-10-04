@@ -1013,7 +1013,7 @@ def map_figure(selected_date):
             ).copy()
 
             risk_cells = blue[
-                blue["risk"].fillna(0).astype(int).eq(1)
+                blue["risk"].fillna(0).astype(int).gt(0)
             ].copy()
 
             risk_cells = risk_cells.rename(
@@ -1026,7 +1026,7 @@ def map_figure(selected_date):
 
             processed_count = len(blue)
             risk_count = int(
-                blue["risk"].fillna(0).astype(int).sum()
+                blue["risk"].fillna(0).astype(int).gt(0).sum()
             )
 
     fig = go.Figure()
@@ -1589,9 +1589,9 @@ elif st.session_state.page == "map":
             "observation",
         ),
         (
-            "Processed cells",
+            "Map cells",
             f"{processed_count:,}",
-            "selected field",
+            "selected observation",
         ),
         (
             "Potential-risk",
