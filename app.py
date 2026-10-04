@@ -117,6 +117,22 @@ def load_history():
 
     h["risk"] = h["risk"].fillna(0).astype("int8")
 
+    # Build temporal support signals for the website if the compact history
+    # file contains only date/grid/Chl-a/risk. These are descriptive
+    # screening signals on the 1° web history grid, not new model outputs.
+    h = h.sort_values(["lat_bin", "lon_bin", "date"]).reset_index(drop=True)
+    g = h.groupby(["lat_bin", "lon_bin"])["chla"]
+    if "previous_chla" not in h.columns:
+        h["previous_chla"] = g.shift(1)
+    if "historical_baseline" not in h.columns:
+        h["historical_baseline"] = g.transform(
+            lambda x: x.shift(1).expanding().mean()
+        )
+    if "chla_anomaly" not in h.columns:
+        h["chla_anomaly"] = h["chla"] - h["historical_baseline"]
+    if "chla_change" not in h.columns:
+        h["chla_change"] = h["chla"] - h["previous_chla"]
+
     return h, path.name
 
 
@@ -834,6 +850,10 @@ footer,
     .signal-grid,.result-grid{grid-template-columns:1fr;}
     .timeline-top{align-items:flex-start;flex-direction:column;}
 }
+
+.signal .value{font-size:1.02rem!important;line-height:1.2!important;}
+.note b{color:#174b56;}
+.stPlotlyChart{border-radius:18px;overflow:hidden;}
 </style>
 """,
     unsafe_allow_html=True,
@@ -942,7 +962,22 @@ def history_for_date(selected_date):
     ].copy()
 
 
-def map_figure(selected_date):
+def history_support_for_location(lat, lon, selected_date):
+    """Return the nearest compact-history grid cell and temporal signals."""
+    if history.empty:
+        return None
+    h = history_for_date(selected_date)
+    if h.empty:
+        return None
+    # Compact history is 1° bins. Use the nearest bin, not a fake 0.25° value.
+    dist = (h["lat_bin"].to_numpy() - float(lat)) ** 2 + (
+        (h["lon_bin"].to_numpy() - float(lon))
+        * max(np.cos(np.deg2rad(float(lat))), 0.25)
+    ) ** 2
+    return h.iloc[int(np.argmin(dist))]
+
+
+def map_figure(selected_date, detail_mode="Current screening"):
     selected_date = pd.Timestamp(selected_date)
 
     # Use the original 0.25° latest prediction field for the newest date.
@@ -1771,7 +1806,7 @@ elif st.session_state.page == "location":
                     </div>
 
                     <div class="result-item">
-                        <span>Risk probability</span>
+                        <span>Model probability</span>
                         <b>
                             {probability_text(
                                 row.get(
@@ -1833,38 +1868,28 @@ elif st.session_state.page == "location":
         unsafe_allow_html=True,
     )
 
+    # The latest prediction CSV contains only the latest field. If its
+    # historical columns are missing/empty, use the nearest compact history
+    # bin so the dashboard never displays misleading 0.0000 placeholders.
+    support = history_support_for_location(lat, lon, row.date)
+
+    def support_value(row_key):
+        direct = row.get(row_key, np.nan)
+        if pd.notna(direct):
+            return direct
+        if support is not None:
+            return support.get(row_key, np.nan)
+        return np.nan
+
+    baseline = support_value("historical_baseline")
+    anomaly = support_value("chla_anomaly")
+    change = support_value("chla_change")
+
     signals = [
-        (
-            "Current Chl-a",
-            safe_num(row.chla)
-        ),
-        (
-            "Historical baseline",
-            safe_num(
-                row.get(
-                    "historical_baseline",
-                    np.nan
-                )
-            ),
-        ),
-        (
-            "Anomaly",
-            safe_num(
-                row.get(
-                    "chla_anomaly",
-                    np.nan
-                )
-            ),
-        ),
-        (
-            "Recent change",
-            safe_num(
-                row.get(
-                    "chla_change",
-                    np.nan
-                )
-            ),
-        ),
+        ("Current Chl-a", safe_num(row.chla)),
+        ("Historical baseline", safe_num(baseline)),
+        ("Anomaly", safe_num(anomaly)),
+        ("Recent change", safe_num(change)),
     ]
 
     scols = st.columns(4, gap="small")
@@ -1883,6 +1908,16 @@ elif st.session_state.page == "location":
                 unsafe_allow_html=True,
             )
 
+    if support is not None and (
+        pd.isna(row.get("historical_baseline", np.nan))
+        or pd.isna(row.get("chla_anomaly", np.nan))
+        or pd.isna(row.get("chla_change", np.nan))
+    ):
+        st.markdown(
+            '<div class="note"><b>Signal note:</b> supporting temporal values are taken from the nearest 1° historical web grid cell for this date. The lookup itself remains tied to the nearest processed 0.25° satellite cell.</div>',
+            unsafe_allow_html=True,
+        )
+
     report = pd.DataFrame(
         [{
             "input_latitude": lat,
@@ -1891,15 +1926,9 @@ elif st.session_state.page == "location":
             "nearest_processed_longitude": row.longitude,
             "date": row.date.strftime("%Y-%m-%d"),
             "chla": row.chla,
-            "historical_baseline": row.get(
-                "historical_baseline", np.nan
-            ),
-            "chla_anomaly": row.get(
-                "chla_anomaly", np.nan
-            ),
-            "chla_change": row.get(
-                "chla_change", np.nan
-            ),
+            "historical_baseline": baseline,
+            "chla_anomaly": anomaly,
+            "chla_change": change,
             "risk_label": row.risk_label,
             "risk_probability": row.get(
                 "risk_probability", np.nan
@@ -1936,34 +1965,7 @@ elif st.session_state.page == "insights":
         else 0
     )
 
-    icols = st.columns(4, gap="medium")
-
-    insight_metrics = [
-        (
-            "Observation cells",
-            f"{len(latest):,}",
-            "latest field",
-        ),
-        (
-            "Potential-risk",
-            f"{total_flags:,}",
-            "screening output",
-        ),
-        (
-            "Risk share",
-            f"{share:.2f}%",
-            "latest field",
-        ),
-        (
-            "Mean Chl-a",
-            safe_num(latest["chla"].mean()),
-            "latest field",
-        ),
-    ]
-
-    for col, item in zip(icols, insight_metrics):
-        with col:
-            metric(*item)
+    # Keep headline metrics on Home only. Insights is reserved for analysis.
 
     zones = hotspot_table(latest)
 
@@ -2417,7 +2419,7 @@ elif st.session_state.page == "data":
     page_heading(
         "DOWNLOADS",
         "Take the actual project outputs.",
-        "These downloads are generated directly from the data used by the dashboard.",
+        "These downloads are generated from the latest processed field used by the dashboard.",
     )
 
     dl1, dl2 = st.columns(
