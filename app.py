@@ -482,38 +482,372 @@ for col, (key, label) in zip(nav, pages):
 # ============================================================
 
 if st.session_state.page == "home":
-    st.markdown(
-        '''<section class="hero"><div class="hero-content"><div class="kicker">EOS-06 · OCM-3 · Satellite intelligence</div><h1>Read the ocean signal.</h1><p>BloomDetect AI screens satellite-derived chlorophyll-a and temporal behaviour to surface locations whose patterns may deserve closer investigation. It is an early-warning support system, not a claim of confirmed harmful algal bloom detection.</p><div class="chips"><span class="chip">🌊 Ocean colour</span><span class="chip">🛰 EOS-06 OCM-3</span><span class="chip">📍 Spatial screening</span><span class="chip">⚠ Potential bloom-risk signal</span></div></div></section>''',
-        unsafe_allow_html=True,
-    )
 
-    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: metric("Processed cells", f"{len(latest):,}", "latest processed field")
-    with c2: metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
-    with c3: metric("Risk share", f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%", "of processed cells")
-    with c4: metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
+    # --------------------------------------------------------
+    # HOME PAGE ANIMATIONS + POLISH
+    # --------------------------------------------------------
+    st.markdown("""
+    <style>
 
-    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-    left, right = st.columns([1.05, .95], gap="large")
+    /* ---------- Smooth entrance ---------- */
+
+    @keyframes bloomFadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(18px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes bloomFadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes softFloat {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    @keyframes pulseGlow {
+        0%, 100% {
+            box-shadow: 0 0 0 rgba(17, 135, 151, 0);
+        }
+        50% {
+            box-shadow: 0 8px 28px rgba(17, 135, 151, 0.10);
+        }
+    }
+
+    .home-animate {
+        animation: bloomFadeUp 0.65s ease-out both;
+    }
+
+    .home-delay-1 {
+        animation-delay: 0.08s;
+    }
+
+    .home-delay-2 {
+        animation-delay: 0.16s;
+    }
+
+    .home-delay-3 {
+        animation-delay: 0.24s;
+    }
+
+    .home-delay-4 {
+        animation-delay: 0.32s;
+    }
+
+    /* ---------- Hero ---------- */
+
+    .hero {
+        animation: bloomFadeIn 0.7s ease-out both;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero::after {
+        content: "";
+        position: absolute;
+        width: 260px;
+        height: 260px;
+        right: -100px;
+        top: -110px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow:
+            0 0 0 35px rgba(255,255,255,0.025),
+            0 0 0 70px rgba(255,255,255,0.018),
+            0 0 0 105px rgba(255,255,255,0.012);
+        pointer-events: none;
+    }
+
+    /* ---------- Stat cards ---------- */
+
+    .home-stat {
+        animation: bloomFadeUp 0.65s ease-out both;
+        transition:
+            transform 0.22s ease,
+            box-shadow 0.22s ease;
+    }
+
+    .home-stat:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(11, 62, 73, 0.10);
+    }
+
+    /* ---------- Content cards ---------- */
+
+    .home-card {
+        animation: bloomFadeUp 0.65s ease-out both;
+        transition:
+            transform 0.22s ease,
+            box-shadow 0.22s ease;
+    }
+
+    .home-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 26px rgba(11, 62, 73, 0.08);
+    }
+
+    /* ---------- Workflow ---------- */
+
+    .workflow-card {
+        animation: bloomFadeUp 0.7s ease-out both;
+        animation-delay: 0.18s;
+    }
+
+    /* ---------- Image ---------- */
+
+    .home-image-wrap {
+        animation: bloomFadeUp 0.7s ease-out both;
+        animation-delay: 0.24s;
+        border-radius: 18px;
+        overflow: hidden;
+    }
+
+    /* ---------- Timeline ---------- */
+
+    .timeline-card {
+        animation: bloomFadeUp 0.7s ease-out both;
+        animation-delay: 0.30s;
+    }
+
+    /* ---------- Accessibility ---------- */
+
+    @media (prefers-reduced-motion: reduce) {
+        .home-animate,
+        .home-stat,
+        .home-card,
+        .workflow-card,
+        .home-image-wrap,
+        .timeline-card,
+        .hero {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
+    # HERO
+    # --------------------------------------------------------
+
+    st.markdown("""
+    <section class="hero home-animate">
+        <div class="hero-content">
+
+            <div class="kicker">
+                EOS-06 · OCM-3 · Satellite intelligence
+            </div>
+
+            <h1>Read the ocean<br>signal.</h1>
+
+            <p>
+                BloomDetect AI screens satellite-derived chlorophyll-a
+                and temporal behaviour to surface locations whose patterns
+                may deserve closer investigation. It is an early-warning
+                support system, not a claim of confirmed harmful algal bloom detection.
+            </p>
+
+            <div class="chips">
+                <span class="chip">🌊 Ocean colour</span>
+                <span class="chip">🛰 EOS-06 OCM-3</span>
+                <span class="chip">📍 Spatial screening</span>
+                <span class="chip">⚠ Potential bloom-risk signal</span>
+            </div>
+
+        </div>
+    </section>
+    """, unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
+    # KEY METRICS
+    # --------------------------------------------------------
+
+    st.markdown('<div style="height:18px"></div>', unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4, gap="medium")
+
+    with c1:
+        st.markdown('<div class="home-stat home-delay-1">', unsafe_allow_html=True)
+        metric(
+            "Processed cells",
+            f"{len(latest):,}",
+            "latest processed field"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c2:
+        st.markdown('<div class="home-stat home-delay-2">', unsafe_allow_html=True)
+        metric(
+            "Potential-risk cells",
+            f"{len(risk_latest):,}",
+            "current screening"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c3:
+        st.markdown('<div class="home-stat home-delay-3">', unsafe_allow_html=True)
+        metric(
+            "Risk share",
+            f"{(len(risk_latest) / len(latest) * 100 if len(latest) else 0):.2f}%",
+            "of processed cells"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c4:
+        st.markdown('<div class="home-stat home-delay-4">', unsafe_allow_html=True)
+        metric(
+            "Maximum Chl-a",
+            fmt_num(latest.chla.max()),
+            "latest field"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
+    # MAIN INFORMATION AREA
+    # --------------------------------------------------------
+
+    st.markdown('<div style="height:18px"></div>', unsafe_allow_html=True)
+
+    left, right = st.columns([1.0, 1.0], gap="medium")
+
+
+    # ========================================================
+    # LEFT SIDE
+    # ========================================================
+
     with left:
+
+        st.markdown(
+            '<div class="home-card home-delay-1">',
+            unsafe_allow_html=True
+        )
+
         card(
             "From satellite observation to investigation support",
             "BloomDetect combines current chlorophyll-a with temporal context such as the previous observation, historical baseline and recent behaviour. The resulting flag is a potential bloom-risk screening signal.",
             '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
         )
-        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+        st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
+
+
+        # Workflow card
+        st.markdown("""
+        <div class="card workflow-card">
+            <div class="card-title">A focused workflow</div>
+
+            <div class="card-copy">
+                Use <b>Risk Map</b> for the spatial field,
+                <b>Location</b> for one coordinate,
+                <b>Insights</b> for patterns, and
+                <b>Data</b> for source files and project evidence.
+            </div>
+
+            <div style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+                margin-top:14px;
+            ">
+                <span class="chip">🗺 Risk Map</span>
+                <span class="chip">📍 Location</span>
+                <span class="chip">📊 Insights</span>
+                <span class="chip">↓ Data</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+    # ========================================================
+    # RIGHT SIDE
+    # ========================================================
+
     with right:
+
         if IMAGE_FILE.exists():
-            st.image(str(IMAGE_FILE), width="stretch", caption="Satellite ocean-colour observations supporting bloom-risk investigation")
+
+            st.markdown(
+                '<div class="home-image-wrap">',
+                unsafe_allow_html=True
+            )
+
+            st.image(
+                str(IMAGE_FILE),
+                width="stretch",
+                caption="Satellite ocean-colour observations supporting bloom-risk investigation"
+            )
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
         else:
-            card("Project visual", "The project illustration is not present beside app.py, so no substitute image is being invented.")
+
+            st.markdown("""
+            <div class="card home-card">
+                <div class="card-title">Project visual</div>
+
+                <div class="card-copy">
+                    The project illustration is not present beside
+                    <b>app.py</b>, so no substitute image is being invented.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
+    # TIMELINE
+    # --------------------------------------------------------
 
     if history_available:
+
         first_hist = history.date.min()
         last_hist = history.date.max()
-        st.markdown(f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>', unsafe_allow_html=True)
+
+        st.markdown('<div style="height:18px"></div>', unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+            <div class="timeline-card callout">
+                <strong>Available historical screening window</strong><br>
+                {fmt_date(first_hist)}
+                <span style="padding:0 7px;">→</span>
+                {fmt_date(last_hist)}
+                <br>
+                <span style="font-size:0.88em;">
+                    Earlier dates represent historical screening context,
+                    not additional ML model predictions.
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+    # --------------------------------------------------------
+    # FOOTER
+    # --------------------------------------------------------
+
     footer()
 
 # ============================================================
