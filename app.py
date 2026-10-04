@@ -170,6 +170,30 @@ html,body,[data-testid="stAppViewContainer"]{
 [data-baseweb="select"]>div,.stNumberInput input{
   border:1px solid #9fcbd0!important;border-radius:11px!important;background:#fff!important;
 }
+/* Location number fields: real editable text, clearly visible on the light UI. */
+[data-testid="stNumberInput"] input,
+.stNumberInput input{
+  color:#0b3e49!important;
+  -webkit-text-fill-color:#0b3e49!important;
+  caret-color:#0b3e49!important;
+  opacity:1!important;
+  font-weight:600!important;
+}
+[data-testid="stNumberInput"] input::placeholder,
+.stNumberInput input::placeholder{
+  color:#8aa1a6!important;
+  -webkit-text-fill-color:#8aa1a6!important;
+  opacity:1!important;
+}
+[data-testid="stNumberInput"] button{
+  color:#0b3e49!important;
+  background:#f2f8f8!important;
+  opacity:1!important;
+}
+[data-testid="stNumberInput"] button:hover{
+  background:#dff7f5!important;
+  color:#0b3e49!important;
+}
 /* Location inputs: keep labels visible and consistent with the BloomDetect theme. */
 [data-testid="stNumberInput"] label,
 .stNumberInput label{
@@ -566,9 +590,9 @@ elif st.session_state.page == "location":
 
     left, right = st.columns([.78, 1.22], gap="large")
     with left:
-        card("Your input", "Use decimal degrees. No coordinate is pre-filled, because pretending a random coordinate is meaningful is not analysis.")
-        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=None, step=0.01, format="%.4f", key="lookup_lat")
-        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=None, step=0.01, format="%.4f", key="lookup_lon")
+        card("Your input", "Use decimal degrees. The fields start at 1.0000 and can be edited before checking the coordinate.")
+        lat = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=1.0, step=0.01, format="%.4f", key="lookup_lat")
+        lon = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=1.0, step=0.01, format="%.4f", key="lookup_lon")
         check = st.button("Check coordinate", width="stretch", type="primary")
         st.markdown('<div class="small-muted">Study window: −40° to 30° latitude · 20° to 120° longitude</div>', unsafe_allow_html=True)
 
