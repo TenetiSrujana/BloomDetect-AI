@@ -861,38 +861,75 @@ elif st.session_state.page == "location":
                                 unsafe_allow_html=True,
                             )
 
-                            fig = px.line(
-                                trend,
-                                x="date",
-                                y="chla",
-                                markers=True,
-                            )
+                           fig = px.line(
+    trend,
+    x="date",
+    y="chla",
+    markers=True,
+)
 
-                            fig.update_layout(
-                                height=320,
-                                margin=dict(
-                                    l=50,
-                                    r=20,
-                                    t=20,
-                                    b=50,
-                                ),
-                                paper_bgcolor="white",
-                                plot_bgcolor="white",
-                                font=dict(
-                                    family="DM Sans",
-                                    color="#0b3e49",
-                                ),
-                                xaxis_title="Observation date",
-                                yaxis_title="Mean Chl-a",
-                            )
+fig.update_traces(
+    line=dict(color="#78BDF2", width=3),
+    marker=dict(size=7, color="#78BDF2"),
+)
 
-                            st.plotly_chart(
-                                fig,
-                                width="stretch",
-                                config={
-                                    "displaylogo": False
-                                },
-                            )
+fig.update_layout(
+    height=320,
+    margin=dict(l=60, r=25, t=20, b=55),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(
+        family="DM Sans",
+        color="#0B3E49",
+        size=12,
+    ),
+    hoverlabel=dict(
+        bgcolor="white",
+        font=dict(color="#0B3E49"),
+    ),
+
+    # X AXIS
+    xaxis=dict(
+        title=dict(
+            text="Observation date",
+            font=dict(color="#111111", size=13),
+        ),
+        tickfont=dict(
+            color="#111111",
+            size=11,
+        ),
+        showline=True,
+        linecolor="#111111",
+        linewidth=1,
+        showgrid=False,
+        zeroline=False,
+    ),
+
+    # Y AXIS
+    yaxis=dict(
+        title=dict(
+            text="Mean Chl-a",
+            font=dict(color="#111111", size=13),
+        ),
+        tickfont=dict(
+            color="#111111",
+            size=11,
+        ),
+        showline=True,
+        linecolor="#111111",
+        linewidth=1,
+        showgrid=True,
+        gridcolor="#D9E1E4",
+        gridwidth=1,
+        zeroline=False,
+    ),
+)
+
+st.plotly_chart(
+    fig,
+    width="stretch",
+    config={"displaylogo": False},
+)
 
                 # ====================================================
                 # SCIENTIFIC BOUNDARY
