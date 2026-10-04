@@ -164,39 +164,27 @@ html,body,[data-testid="stAppViewContainer"]{
   color:var(--ink)!important;font-weight:700!important;min-height:43px!important;
   box-shadow:0 4px 13px rgba(10,76,87,.05)!important;transition:.15s ease!important;
 }
-
-/* Form labels: keep them clearly visible and consistent with the dark theme. */
-[data-testid="stNumberInput"] label,
-[data-testid="stSelectbox"] label,
-[data-testid="stSlider"] label,
-[data-testid="stDateInput"] label,
-[data-testid="stTextInput"] label,
-[data-testid="stRadio"] label,
-[data-testid="stCheckbox"] label{
-  color:var(--ink)!important;
-  font:700 .74rem Manrope,sans-serif!important;
-  letter-spacing:.01em!important;
-  opacity:1!important;
-}
-
-[data-testid="stNumberInput"] label p,
-[data-testid="stSelectbox"] label p,
-[data-testid="stSlider"] label p,
-[data-testid="stDateInput"] label p,
-[data-testid="stTextInput"] label p{
-  color:var(--ink)!important;
-}
 .stButton>button:hover,.stDownloadButton>button:hover{border-color:var(--teal)!important;background:#e9fbfa!important;transform:translateY(-1px)}
 .stButton>button[kind="primary"]{background:var(--ink)!important;color:white!important;border-color:var(--ink)!important}
 .stButton>button[kind="primary"]:hover{background:var(--teal2)!important}
 [data-baseweb="select"]>div,.stNumberInput input{
   border:1px solid #9fcbd0!important;border-radius:11px!important;background:#fff!important;
 }
+/* Location inputs: keep labels visible and consistent with the BloomDetect theme. */
 [data-testid="stNumberInput"] label,
-[data-testid="stSelectbox"] label,
-[data-testid="stSlider"] label{
+.stNumberInput label{
+  color:#0b3e49!important;font-family:'DM Sans',sans-serif!important;
+  font-size:.78rem!important;font-weight:700!important;
   margin-bottom:4px!important;
 }
+[data-testid="stNumberInput"] label p,
+.stNumberInput label p{color:#0b3e49!important;}
+/* Streamlit alerts should use the same readable dark text as the rest of the app. */
+[data-testid="stAlert"]{
+  border-radius:14px!important;border:1px solid #c4e3e5!important;
+  background:#eaf8f7!important;color:#0b3e49!important;
+}
+[data-testid="stAlert"] *{color:#0b3e49!important;}
 [data-testid="stSlider"]{padding-top:4px!important}
 
 /* Page typography */
@@ -229,15 +217,9 @@ html,body,[data-testid="stAppViewContainer"]{
 .legend{display:flex;flex-wrap:wrap;gap:15px;padding:11px 15px;background:white;border-top:1px solid var(--line);font-size:.68rem;color:#5d7a81}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 
 /* Tables / charts */
-.section-label{
-  font:800 .68rem Manrope,sans-serif;
-  letter-spacing:.15em;
-  text-transform:uppercase;
-  color:var(--ink)!important;
-  opacity:1!important;
-  margin:25px 0 9px;
-}
+.section-label{font:800 .61rem Manrope;letter-spacing:.16em;text-transform:uppercase;color:#0b3e49;margin:25px 0 9px}
 [data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+[data-testid="stDataFrame"] *{color:#0b3e49!important}
 .chart-card{padding:4px 0 0}
 
 .footer{margin-top:38px;padding-top:13px;border-top:1px solid #d6e9ea;color:#789197;font-size:.64rem}
@@ -688,7 +670,24 @@ elif st.session_state.page == "insights":
         zone = zone.nlargest(10, "cells").sort_values("cells")
         fig = px.bar(zone, x="cells", y="zone", orientation="h", text="cells")
         fig.update_traces(marker_color="#e84e5d", textposition="outside")
-        fig.update_layout(height=430, margin=dict(l=150, r=35, t=20, b=55), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="white", xaxis_title="Potential-risk screening cells", yaxis_title="")
+        fig.update_layout(
+            height=430,
+            margin=dict(l=150, r=45, t=20, b=60),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="white",
+            font=dict(family="DM Sans", color="#0b3e49"),
+            showlegend=False,
+            xaxis=dict(
+                title=dict(text="Potential-risk screening cells", font=dict(color="#0b3e49", size=13)),
+                tickfont=dict(color="#0b3e49", size=11),
+                gridcolor="#d7e9ea",
+                zerolinecolor="#9fcbd0",
+            ),
+            yaxis=dict(
+                title=dict(text="", font=dict(color="#0b3e49")),
+                tickfont=dict(color="#0b3e49", size=11),
+            ),
+        )
         st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     else:
         st.info("No potential-risk cells are present in the latest field, so there is no concentration chart to fabricate.")
@@ -701,7 +700,25 @@ elif st.session_state.page == "insights":
         if not valid.empty:
             fig = px.histogram(valid, nbins=45)
             fig.update_traces(marker_color="#2387aa")
-            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chlorophyll-a", yaxis_title="Cells")
+            fig.update_layout(
+                height=360,
+                margin=dict(l=55, r=15, t=18, b=58),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="DM Sans", color="#0b3e49"),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(text="Chlorophyll-a", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                ),
+            )
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     with b:
         card("Recent Chl-a change", "The distribution of change relative to the previous observation, where that field exists.")
@@ -710,7 +727,25 @@ elif st.session_state.page == "insights":
             fig = px.histogram(change, nbins=45)
             fig.update_traces(marker_color="#22a878")
             fig.add_vline(x=CHANGE_THRESHOLD, line_dash="dash", line_color="#d8952e")
-            fig.update_layout(height=360, margin=dict(l=55, r=15, t=15, b=50), paper_bgcolor="white", plot_bgcolor="white", xaxis_title="Chl-a change", yaxis_title="Cells")
+            fig.update_layout(
+                height=360,
+                margin=dict(l=55, r=15, t=18, b=58),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="DM Sans", color="#0b3e49"),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(text="Chl-a change", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
+                    tickfont=dict(color="#0b3e49", size=11),
+                    gridcolor="#d7e9ea",
+                ),
+            )
             st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
         else:
             st.info("Recent-change values are not present in the latest field.")
