@@ -88,20 +88,23 @@ st.markdown(
 html,body,[data-testid="stAppViewContainer"]{background:var(--bg)!important;color:var(--ink)!important;font-family:'DM Sans',sans-serif!important;}
 .stApp{background:linear-gradient(180deg,#fbffff 0%,#effafa 55%,#fbffff 100%)!important;overflow-x:hidden!important;}
 [data-testid="stHeader"],[data-testid="stToolbar"],#MainMenu,footer,[data-testid="stSidebar"]{display:none!important;}
-.block-container{max-width:1220px!important;padding:26px 28px 60px!important;margin:auto!important;}
+.block-container{max-width:1220px!important;padding:34px 30px 72px!important;margin:auto!important;}
 .brand{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:15px 19px;border:1.5px solid #c5e5e7;background:#fff;border-radius:21px;box-shadow:0 10px 28px rgba(9,80,94,.08);}
 .brand-left{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:49px;height:49px;border-radius:15px;background:linear-gradient(145deg,#2bcdd0,#087b8e);display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px;flex:0 0 49px}.brand-name{font:800 1.2rem Manrope;color:var(--ink);letter-spacing:-.035em}.brand-sub{font-size:.71rem;color:#78959b;margin-top:2px}.latest{font-size:.67rem;color:#78959b;text-align:right;line-height:1.35}.latest b{font-size:.77rem;color:#174b56}
-.nav{margin:10px 0 25px}.nav .stButton>button{min-height:42px!important;border-radius:13px!important;font-size:.79rem!important;}
+.nav{margin:12px 0 38px}.nav .stButton>button{min-height:42px!important;border-radius:13px!important;font-size:.79rem!important;}
 .stButton>button,.stDownloadButton>button{border:2px solid #164e5b!important;background:#fff!important;color:#123f49!important;border-radius:13px!important;font-weight:800!important;min-height:43px!important;box-shadow:0 4px 13px rgba(15,70,82,.07)!important}.stButton>button:hover,.stDownloadButton>button:hover{background:#e4f8f8!important;border-color:#087d8c!important}.stButton>button[kind="primary"]{background:#d8f7f7!important;border-color:#078c9b!important}
 .kicker{font:800 .65rem Manrope;letter-spacing:.17em;text-transform:uppercase;color:#0797a5;margin-bottom:9px}.section h1,.section h2{font:800 clamp(2.15rem,4.6vw,3.75rem)/1.03 Manrope;color:var(--ink);letter-spacing:-.06em;margin:0 0 12px}.section p{font-size:.93rem;color:#5f8088;line-height:1.65;margin:0;max-width:1060px}.section{padding:16px 0 8px}
-.hero{position:relative;overflow:hidden;min-height:360px;padding:54px;border-radius:30px;background:linear-gradient(135deg,#063d51,#087486 55%,#12a8ad);box-shadow:0 22px 58px rgba(6,86,100,.15);}.hero:after{content:"";position:absolute;width:520px;height:520px;right:-180px;top:-200px;border:80px solid rgba(205,255,253,.10);border-radius:50%;box-shadow:0 0 0 55px rgba(205,255,253,.05),0 0 0 120px rgba(205,255,253,.035)}.hero-content{position:relative;z-index:2;max-width:850px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(3rem,6vw,5.5rem)/.93 Manrope;color:#e5ffff;letter-spacing:-.075em;margin:0 0 20px}.hero p{font-size:1rem;line-height:1.72;color:#e2fbfb;max-width:780px}.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.badge{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#efffff;font-size:.74rem;font-weight:700}
-.metric{min-height:112px;padding:17px;border:1.5px solid #a6d5da;border-radius:18px;background:linear-gradient(145deg,#fff,#eaf8f8);box-shadow:0 9px 24px rgba(15,91,101,.06)}.metric-label{font:800 .61rem Manrope;letter-spacing:.11em;text-transform:uppercase;color:#6d8c93}.metric-value{font:800 1.45rem Manrope;color:#123f49;margin-top:5px;overflow-wrap:anywhere}.metric-note{font-size:.69rem;color:#78959b;margin-top:4px}
+.hero{position:relative;overflow:hidden;min-height:385px;padding:62px 58px;border-radius:30px;background:linear-gradient(135deg,#063d51,#087486 55%,#12a8ad);box-shadow:0 22px 58px rgba(6,86,100,.15);}.hero:after{content:"";position:absolute;width:520px;height:520px;right:-180px;top:-200px;border:80px solid rgba(205,255,253,.10);border-radius:50%;box-shadow:0 0 0 55px rgba(205,255,253,.05),0 0 0 120px rgba(205,255,253,.035)}.hero-content{position:relative;z-index:2;max-width:850px}.hero .kicker{color:#a6fffa}.hero h1{font:800 clamp(3rem,6vw,5.5rem)/.93 Manrope;color:#e5ffff;letter-spacing:-.075em;margin:0 0 20px}.hero p{font-size:1rem;line-height:1.72;color:#e2fbfb;max-width:780px}.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.badge{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#efffff;font-size:.74rem;font-weight:700}
+.metric{min-height:116px;padding:17px;border:1.5px solid #a6d5da;border-radius:18px;background:linear-gradient(145deg,#fff,#eaf8f8);box-shadow:0 9px 24px rgba(15,91,101,.06)}.metric-label{font:800 .61rem Manrope;letter-spacing:.11em;text-transform:uppercase;color:#6d8c93}.metric-value{font:800 1.45rem Manrope;color:#123f49;margin-top:5px;overflow-wrap:anywhere}.metric-note{font-size:.69rem;color:#78959b;margin-top:4px}
 .card{padding:21px;border:1.5px solid #afd9dc;border-radius:20px;background:#fff;box-shadow:0 11px 29px rgba(9,80,94,.07)}.card h3{font:800 1.18rem Manrope;color:#123f49;margin:0 0 8px}.card p{font-size:.87rem;line-height:1.6;color:#66848b;margin:0}.note{padding:13px 15px;margin-top:14px;background:#e5f8f8;border-left:4px solid #11a9b2;border-radius:0 13px 13px 0;color:#52757c;font-size:.8rem;line-height:1.55}.note b{color:#174b56}
-.story{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:center;margin-top:18px}.story-img{border:1.5px solid #a9d6da;border-radius:21px;overflow:hidden;background:#dff7f8;box-shadow:0 12px 32px rgba(9,80,94,.08)}
+.story{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:center;margin-top:26px}.story-img{border:1.5px solid #a9d6da;border-radius:21px;overflow:hidden;background:#dff7f8;box-shadow:0 12px 32px rgba(9,80,94,.08)}
 .map-wrap{background:#dff7f8;border:1.5px solid #91cbd1;border-radius:21px;padding:5px;box-shadow:0 14px 35px rgba(9,80,94,.08);overflow:hidden}.map-head{display:flex;justify-content:space-between;gap:10px;padding:9px 11px;align-items:center}.map-head b{font-size:.82rem;color:#174b56}.map-head span{font-size:.67rem;color:#6b8b92}.legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 12px;color:#54757c;font-size:.72rem}.dot{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:4px}.square{border-radius:3px}
 .signal-title{font:800 .64rem Manrope;letter-spacing:.15em;text-transform:uppercase;color:#6d8c93;margin:20px 0 8px}.signal{padding:15px;border:1.5px solid #b9dfe2;border-radius:17px;background:#fff}.signal-label{font-size:.67rem;color:#78959b}.signal-value{font:800 1.15rem Manrope;color:#164a55;margin-top:4px}.signal-sub{font-size:.7rem;color:#78959b;margin-top:3px}
 .status{padding:15px;border-radius:16px;border:2px solid;margin-top:14px}.status-risk{background:#fff0f2;border-color:#f06a78;color:#9e2d3c}.status-ok{background:#eafaf4;border-color:#49b995;color:#176f58}.status-title{font:800 .9rem Manrope;margin-bottom:3px}
-.stNumberInput input{border:2px solid #164e5b!important;border-radius:11px!important;background:#fff!important}.stSelectbox div[data-baseweb="select"]>div{border:2px solid #164e5b!important;border-radius:11px!important;background:#fff!important}.stPlotlyChart{border-radius:18px;overflow:hidden}
+[data-testid="stNumberInput"] label{color:#315f68!important;font-weight:800!important;font-size:.78rem!important}
+[data-testid="stNumberInput"] input{color:#123f49!important;-webkit-text-fill-color:#123f49!important;background:#fff!important;border:2px solid #164e5b!important;border-radius:11px!important;font-weight:700!important;opacity:1!important}
+[data-testid="stNumberInput"] div[data-baseweb="input"]{background:#fff!important;border-radius:11px!important}
+.stSelectbox div[data-baseweb="select"]>div{border:2px solid #164e5b!important;border-radius:11px!important;background:#fff!important;color:#123f49!important}.stPlotlyChart{border-radius:18px;overflow:hidden}
 .tool{padding:18px;border:1.5px solid #b5dde0;border-radius:18px;background:#fff;min-height:145px;box-shadow:0 8px 22px rgba(9,80,94,.06)}.tool h3{font:800 1rem Manrope;color:#123f49;margin:0 0 6px}.tool p{font-size:.79rem;line-height:1.5;color:#66848b;margin:0}
 .footer{border-top:1px solid #d5ebed;margin-top:40px;padding-top:14px;color:#76959b;font-size:.67rem}
 @media(max-width:900px){.story{grid-template-columns:1fr}.toolgrid{grid-template-columns:1fr 1fr!important}}@media(max-width:620px){.block-container{padding:15px 12px 45px!important}.brand{padding:12px}.latest{display:none}.hero{padding:35px 24px}.hero h1{font-size:3rem}.toolgrid,.metricgrid,.signalgrid{grid-template-columns:1fr!important}}
@@ -278,7 +281,7 @@ if st.session_state.page == "home":
         else:
             st.info("Project illustration not found. The dashboard itself is still fully usable.")
 
-    st.markdown('<div class="section"><div class="kicker">FOUR FOCUSED VIEWS</div><h2>Everything has one job.</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section"><div class="kicker">FOUR FOCUSED VIEWS</div><h2>Everything has one job.</h2><p>Move from the spatial field to one location, then to summary insights and project data without repeating the same information everywhere.</p></div>', unsafe_allow_html=True)
     cols = st.columns(4)
     tools = [
         ("🌊", "Risk Map", "Read the latest spatial field, change signal, anomaly and potential-risk cells."),
@@ -443,7 +446,7 @@ elif st.session_state.page == "insights":
             zplot = zone.sort_values("risk_cells")
             fig = px.bar(zplot, x="risk_cells", y="label", orientation="h")
             fig.update_traces(marker_color="#ef4f5e")
-            fig.update_layout(height=420, margin=dict(l=10,r=15,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family="DM Sans",color="#315b63"), xaxis_title="Potential-risk cells", yaxis_title="", showlegend=False)
+            fig.update_layout(height=420, margin=dict(l=10,r=15,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family="DM Sans",color="#234f59",size=13), xaxis_title="Potential-risk cells", yaxis_title="", showlegend=False)
             st.plotly_chart(fig, use_container_width=True, config={"displaylogo":False})
         else:
             st.info("No potential-risk cells are present in the latest field.")
@@ -454,29 +457,44 @@ elif st.session_state.page == "insights":
         if not valid_chla.empty:
             fig = px.histogram(valid_chla, nbins=40, labels={"value":"Chlorophyll-a"})
             fig.update_traces(marker_color="#2584a8")
-            fig.update_layout(height=420, margin=dict(l=10,r=15,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family="DM Sans",color="#315b63"), xaxis_title="Chlorophyll-a", yaxis_title="Cells", showlegend=False)
+            fig.update_layout(height=420, margin=dict(l=10,r=15,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family="DM Sans",color="#234f59",size=13), xaxis_title="Chlorophyll-a", yaxis_title="Cells", showlegend=False)
             st.plotly_chart(fig, use_container_width=True, config={"displaylogo":False})
 
     c1,c2 = st.columns(2, gap="large")
     with c1:
-        st.markdown('<div class="card"><h3>Recent-change profile</h3><p>Positive and negative changes in Chl-a relative to the previous observation.</p></div>', unsafe_allow_html=True)
-        change = latest["chla_change"].dropna() if "chla_change" in latest else pd.Series(dtype=float)
-        if not change.empty:
-            q = change.quantile([.01,.25,.5,.75,.99])
-            labels=["1%","25%","Median","75%","99%"]
-            fig=go.Figure(go.Bar(x=labels,y=q.values,marker_color="#2584a8"))
-            fig.update_layout(height=300,margin=dict(l=10,r=10,t=15,b=10),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",font=dict(family="DM Sans",color="#315b63"),yaxis_title="Chl-a change",xaxis_title="Distribution point")
-            st.plotly_chart(fig,use_container_width=True,config={"displaylogo":False})
+        st.markdown(
+            '<div class="card"><h3>Current signal summary</h3><p>A compact summary of the latest field, without the old distribution graph.</p></div>',
+            unsafe_allow_html=True,
+        )
+        mean_chla = latest["chla"].mean()
+        max_chla = latest["chla"].max()
+        mean_change = latest["chla_change"].mean() if "chla_change" in latest.columns else np.nan
+        mean_anomaly = latest["chla_anomaly"].mean() if "chla_anomaly" in latest.columns else np.nan
+        s1, s2 = st.columns(2)
+        with s1:
+            st.markdown(f'<div class="signal"><div class="signal-label">Mean Chl-a</div><div class="signal-value">{fmt_num(mean_chla)}</div><div class="signal-sub">latest field</div></div>', unsafe_allow_html=True)
+        with s2:
+            st.markdown(f'<div class="signal"><div class="signal-label">Maximum Chl-a</div><div class="signal-value">{fmt_num(max_chla)}</div><div class="signal-sub">latest field</div></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
+        s3, s4 = st.columns(2)
+        with s3:
+            st.markdown(f'<div class="signal"><div class="signal-label">Mean recent change</div><div class="signal-value">{fmt_num(mean_change)}</div><div class="signal-sub">vs previous observation</div></div>', unsafe_allow_html=True)
+        with s4:
+            st.markdown(f'<div class="signal"><div class="signal-label">Mean anomaly</div><div class="signal-value">{fmt_num(mean_anomaly)}</div><div class="signal-sub">vs historical baseline</div></div>', unsafe_allow_html=True)
+
     with c2:
-        st.markdown('<div class="card"><h3>Highest current-risk cells</h3><p>Locations with the largest stored model screening scores.</p></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="card"><h3>Highest current-risk cells</h3><p>Locations with the largest stored model screening scores.</p></div>',
+            unsafe_allow_html=True,
+        )
         if not latest_risk.empty and "risk_probability" in latest_risk.columns:
             top = latest_risk.sort_values("risk_probability", ascending=False).head(8).copy()
             top["Location"] = top.apply(lambda r: f"{r.latitude:.2f}°, {r.longitude:.2f}°", axis=1)
             table = top[["Location","chla","risk_probability"]].copy()
-            table.columns=["Location","Chl-a","Risk probability"]
+            table.columns = ["Location","Chl-a","Risk probability"]
             table["Chl-a"] = table["Chl-a"].map(lambda x: fmt_num(x,4))
             table["Risk probability"] = table["Risk probability"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "Unavailable")
-            st.dataframe(table, use_container_width=True, hide_index=True)
+            st.dataframe(table, use_container_width=True, hide_index=True, height=280)
         else:
             st.info("Risk-probability values are not available for the latest field.")
 
