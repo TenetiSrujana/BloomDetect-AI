@@ -1969,120 +1969,40 @@ elif st.session_state.page == "insights":
             width="stretch",
         )
 
-
 # ============================================================
 # DATA
 # ============================================================
 
 elif st.session_state.page == "data":
-
-    section(
+    heading(
         "04 · DATA",
-        "Source data and project outputs.",
-        "Everything related to the dataset and downloads stays here, so the other pages remain focused on analysis.",
+        "Source, scope and downloadable outputs.",
+        "Project data and interpretation notes live here so the other pages can stay focused and avoid repeating the same information.",
     )
 
-    cols = st.columns(4, gap="medium")
+    c1,c2 = st.columns(2, gap="large")
+    with c1:
+        st.markdown('<div class="card"><h3>Source product</h3><p><b>EOS-06 / Oceansat-3 OCM-3</b><br>Level-4 Analysed Chlorophyll Product · E06OCM_L4_AC<br>NetCDF satellite-derived ocean-colour product.</p><div class="note"><b>Study window:</b> approximately 20°E–120°E and 40°S–30°N for the dashboard view.</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="card"><h3>What the system screens</h3><p>BloomDetect combines current Chl-a with temporal context such as the previous observation, historical baseline, recent mean and recent maximum. The classifier produces a potential bloom-risk screening signal.</p><div class="note"><b>Important:</b> the dataset does not contain confirmed HAB species/toxin labels. Therefore the output is potential bloom-risk screening, not confirmed HAB detection.</div></div>', unsafe_allow_html=True)
 
-    info = [
-        ("Product", "E06OCM_L4_AC", "EOS-06 / OCM-3"),
-        ("Grid", "0.25°", "latitude × longitude"),
-        ("Latest cells", f"{len(latest):,}", "processed observation"),
-        ("Latest date", latest_date.strftime("%d %b %Y"), "processed dataset"),
-    ]
+    st.markdown('<div class="section"><div class="kicker">LATEST OUTPUT</div><h2>Download the processed field.</h2></div>', unsafe_allow_html=True)
+    csv_bytes = latest.to_csv(index=False).encode("utf-8")
+    risk_bytes = latest_risk.to_csv(index=False).encode("utf-8")
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        st.download_button("⇩ Download latest field CSV", data=csv_bytes, file_name="bloomdetect_latest_field.csv", mime="text/csv", width="stretch")
+    with c2:
+        st.download_button("⇩ Download risk cells CSV", data=risk_bytes, file_name="bloomdetect_potential_risk_cells.csv", mime="text/csv", width="stretch")
+    with c3:
+        st.markdown(f'<div class="card" style="min-height:41px;padding:10px 13px"><p><b>Latest field:</b> {fmt_date(latest_date)}<br><b>Rows:</b> {len(latest):,}<br><b>Risk cells:</b> {len(latest_risk):,}</p></div>', unsafe_allow_html=True)
 
-    for col, (label, value, note) in zip(cols, info):
-        with col:
-            metric(label, value, note)
+    st.markdown('<div class="card" style="margin-top:16px"><h3>Interpretation rule</h3><p>High chlorophyll-a alone does not establish a harmful algal bloom. Satellite observations support spatial and temporal screening, while species identification, toxin confirmation and ecological impact assessment require additional evidence and field validation.</p></div>', unsafe_allow_html=True)
 
-    st.markdown(
-        """
-        <div class="card" style="margin-top:18px">
-            <div class="mini-label">SOURCE PRODUCT</div>
-            <h3>EOS-06 OCM-3 analysed chlorophyll-a</h3>
-            <p>
-                The dashboard uses the EOS-06 / Oceansat-3 OCM-3 Level-4
-                analysed chlorophyll product, E06OCM_L4_AC. The project output
-                is a potential bloom-risk screening layer built from the
-                satellite-derived chlorophyll-a signal and temporal context.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    if history_available:
+        st.markdown('<div class="card" style="margin-top:14px"><h3>Compact history</h3><p>The optional history file is loaded for the Risk Map timeline. It contains aggregated 1° screening cells rather than the full raw satellite dataset.</p></div>', unsafe_allow_html=True)
 
-    section(
-        "DOWNLOADS",
-        "Take the actual project outputs.",
-        "These downloads are generated directly from the data used by the dashboard.",
-    )
-
-    d1, d2 = st.columns(2, gap="large")
-
-    with d1:
-        st.markdown(
-            """
-            <div class="download-card">
-                <h3>Latest observation table</h3>
-                <p>
-                    All processed cells from the latest available field,
-                    including the stored screening result and supporting signals.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.download_button(
-            "⬇ Download latest observations",
-            latest.to_csv(index=False).encode("utf-8"),
-            "bloomdetect_latest_observations.csv",
-            "text/csv",
-            width="stretch",
-        )
-
-    with d2:
-        st.markdown(
-            """
-            <div class="download-card">
-                <h3>Potential-risk shortlist</h3>
-                <p>
-                    Only cells currently screened as potential bloom risk in
-                    the latest processed field.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.download_button(
-            "⬇ Download potential-risk locations",
-            latest_risk.to_csv(index=False).encode("utf-8"),
-            "bloomdetect_potential_risk.csv",
-            "text/csv",
-            width="stretch",
-        )
-
-    section(
-        "SCIENTIFIC USE",
-        "Use the screening result correctly.",
-        "",
-    )
-
-    st.markdown(
-        """
-        <div class="card">
-            <p>
-                <b>Potential bloom risk</b> is a project screening output.
-                It is not confirmation of a harmful algal bloom, species identity
-                or toxin presence. Satellite observations should be combined with
-                field observations and additional environmental evidence.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    add_footer()
 
 # ============================================================
 # FOOTER
