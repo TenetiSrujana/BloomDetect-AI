@@ -164,11 +164,38 @@ html,body,[data-testid="stAppViewContainer"]{
   color:var(--ink)!important;font-weight:700!important;min-height:43px!important;
   box-shadow:0 4px 13px rgba(10,76,87,.05)!important;transition:.15s ease!important;
 }
+
+/* Form labels: keep them clearly visible and consistent with the dark theme. */
+[data-testid="stNumberInput"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stSlider"] label,
+[data-testid="stDateInput"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stRadio"] label,
+[data-testid="stCheckbox"] label{
+  color:var(--ink)!important;
+  font:700 .74rem Manrope,sans-serif!important;
+  letter-spacing:.01em!important;
+  opacity:1!important;
+}
+
+[data-testid="stNumberInput"] label p,
+[data-testid="stSelectbox"] label p,
+[data-testid="stSlider"] label p,
+[data-testid="stDateInput"] label p,
+[data-testid="stTextInput"] label p{
+  color:var(--ink)!important;
+}
 .stButton>button:hover,.stDownloadButton>button:hover{border-color:var(--teal)!important;background:#e9fbfa!important;transform:translateY(-1px)}
 .stButton>button[kind="primary"]{background:var(--ink)!important;color:white!important;border-color:var(--ink)!important}
 .stButton>button[kind="primary"]:hover{background:var(--teal2)!important}
 [data-baseweb="select"]>div,.stNumberInput input{
   border:1px solid #9fcbd0!important;border-radius:11px!important;background:#fff!important;
+}
+[data-testid="stNumberInput"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stSlider"] label{
+  margin-bottom:4px!important;
 }
 [data-testid="stSlider"]{padding-top:4px!important}
 
@@ -202,7 +229,14 @@ html,body,[data-testid="stAppViewContainer"]{
 .legend{display:flex;flex-wrap:wrap;gap:15px;padding:11px 15px;background:white;border-top:1px solid var(--line);font-size:.68rem;color:#5d7a81}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 
 /* Tables / charts */
-.section-label{font:800 .61rem Manrope;letter-spacing:.16em;text-transform:uppercase;color:#759096;margin:25px 0 8px}
+.section-label{
+  font:800 .68rem Manrope,sans-serif;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--ink)!important;
+  opacity:1!important;
+  margin:25px 0 9px;
+}
 [data-testid="stDataFrame"]{border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .chart-card{padding:4px 0 0}
 
