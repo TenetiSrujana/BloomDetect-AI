@@ -482,241 +482,73 @@ for col, (key, label) in zip(nav, pages):
 # ============================================================
 
 if st.session_state.page == "home":
-
-    # --------------------------------------------------------
-    # HERO
-    # --------------------------------------------------------
     st.markdown(
-        """
-        <section class="hero">
-            <div class="hero-content">
-                <div class="kicker">
-                    EOS-06 · OCM-3 · SATELLITE INTELLIGENCE
-                </div>
-
-                <h1>
-                    Read the ocean<br>
-                    signal.
-                </h1>
-
-                <p>
-                    BloomDetect AI screens satellite-derived chlorophyll-a
-                    and temporal behaviour to surface locations whose patterns
-                    may deserve closer investigation. It is an early-warning
-                    support system, not a claim of confirmed harmful algal bloom detection.
-                </p>
-
-                <div class="chips">
-                    <span class="chip">🌊 Ocean colour</span>
-                    <span class="chip">🛰 EOS-06 OCM-3</span>
-                    <span class="chip">📍 Spatial screening</span>
-                    <span class="chip">⚠ Potential bloom-risk signal</span>
-                </div>
-            </div>
-        </section>
-        """,
+        '''<section class="hero"><div class="hero-content"><div class="kicker">EOS-06 · OCM-3 · Satellite intelligence</div><h1>Read the ocean signal.</h1><p>BloomDetect AI screens satellite-derived chlorophyll-a and temporal behaviour to surface locations whose patterns may deserve closer investigation. It is an early-warning support system, not a claim of confirmed harmful algal bloom detection.</p><div class="chips"><span class="chip">🌊 Ocean colour</span><span class="chip">🛰 EOS-06 OCM-3</span><span class="chip">📍 Spatial screening</span><span class="chip">⚠ Potential bloom-risk signal</span></div></div></section>''',
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # KEY STATISTICS
-    # --------------------------------------------------------
-    st.markdown('<div class="home-gap"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4, gap="medium")
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        metric(
-            "Processed cells",
-            f"{len(latest):,}",
-            "latest processed field"
-        )
+        metric("Processed cells", f"{len(latest):,}", "latest processed field")
 
     with c2:
-        metric(
-            "Potential-risk cells",
-            f"{len(risk_latest):,}",
-            "current screening"
-        )
+        metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
 
     with c3:
-        risk_share = (
-            len(risk_latest) / len(latest) * 100
-            if len(latest)
-            else 0
-        )
-
         metric(
             "Risk share",
-            f"{risk_share:.2f}%",
-            "of processed cells"
+            f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%",
+            "of processed cells",
         )
 
     with c4:
-        metric(
-            "Maximum Chl-a",
-            fmt_num(latest.chla.max()),
-            "latest field"
-        )
+        metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
 
-    # --------------------------------------------------------
-    # MAIN CONTENT
-    # --------------------------------------------------------
-    st.markdown('<div class="home-gap-small"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
-    left, right = st.columns([1, 1], gap="medium")
+    left, right = st.columns([1.05, .95], gap="large")
 
-    # --------------------------------------------------------
-    # LEFT COLUMN
-    # --------------------------------------------------------
     with left:
+        card(
+            "From satellite observation to investigation support",
+            "BloomDetect combines current chlorophyll-a with temporal context such as the previous observation, historical baseline and recent behaviour. The resulting flag is a potential bloom-risk screening signal.",
+            '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
+        )
+
+        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
         st.markdown(
-            """
-            <div class="home-card">
-                <div class="home-card-title">
-                    From satellite observation to investigation support
-                </div>
-
-                <div class="home-card-text">
-                    BloomDetect combines current chlorophyll-a with temporal
-                    context such as the previous observation, historical
-                    baseline and recent behaviour. The resulting flag is a
-                    potential bloom-risk screening signal.
-                </div>
-
-                <div class="home-callout">
-                    <strong>Scientific boundary:</strong>
-                    High chlorophyll-a alone does not prove a harmful algal
-                    bloom. Species, toxin presence and ecological impact
-                    require additional evidence and field validation.
-                </div>
-            </div>
-            """,
+            '<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>',
             unsafe_allow_html=True,
         )
 
-        st.markdown('<div class="home-card-gap"></div>', unsafe_allow_html=True)
-
-        st.markdown(
-            """
-            <div class="home-card workflow-card">
-                <div class="home-card-title">
-                    A focused workflow
-                </div>
-
-                <div class="home-card-text">
-                    Follow a simple investigation flow across the application:
-                </div>
-
-                <div class="workflow-items">
-                    <div class="workflow-item">
-                        <span class="workflow-icon">🗺</span>
-                        <div>
-                            <strong>Risk Map</strong>
-                            <small>Explore the spatial field</small>
-                        </div>
-                    </div>
-
-                    <div class="workflow-item">
-                        <span class="workflow-icon">📍</span>
-                        <div>
-                            <strong>Location</strong>
-                            <small>Inspect one coordinate</small>
-                        </div>
-                    </div>
-
-                    <div class="workflow-item">
-                        <span class="workflow-icon">📊</span>
-                        <div>
-                            <strong>Insights</strong>
-                            <small>Understand temporal patterns</small>
-                        </div>
-                    </div>
-
-                    <div class="workflow-item">
-                        <span class="workflow-icon">↓</span>
-                        <div>
-                            <strong>Data</strong>
-                            <small>Review source files and evidence</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # --------------------------------------------------------
-    # RIGHT COLUMN
-    # --------------------------------------------------------
     with right:
-
         if IMAGE_FILE.exists():
-
-            st.markdown(
-                '<div class="home-image-wrap">',
-                unsafe_allow_html=True,
-            )
-
             st.image(
                 str(IMAGE_FILE),
                 width="stretch",
                 caption="Satellite ocean-colour observations supporting bloom-risk investigation",
             )
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
         else:
-
-            st.markdown(
-                """
-                <div class="home-card image-placeholder">
-                    <div class="home-card-title">
-                        Project visual
-                    </div>
-
-                    <div class="home-card-text">
-                        The project illustration is not available beside
-                        <code>app.py</code>.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            card(
+                "Project visual",
+                "The project illustration is not present beside app.py, so no substitute image is being invented.",
             )
 
-    # --------------------------------------------------------
-    # TIMELINE
-    # --------------------------------------------------------
     if history_available:
-
         first_hist = history.date.min()
         last_hist = history.date.max()
 
         st.markdown(
-            f"""
-            <div class="timeline-callout">
-                <div class="timeline-title">
-                    Available historical screening window
-                </div>
-
-                <div class="timeline-date">
-                    {fmt_date(first_hist)} &nbsp;→&nbsp; {fmt_date(last_hist)}
-                </div>
-
-                <div class="timeline-text">
-                    Earlier dates represent historical screening context,
-                    not additional ML model predictions.
-                </div>
-            </div>
-            """,
+            f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>',
             unsafe_allow_html=True,
         )
 
-    # --------------------------------------------------------
-    # FOOTER
-    # --------------------------------------------------------
     footer()
+
 
 # ============================================================
 # RISK MAP
