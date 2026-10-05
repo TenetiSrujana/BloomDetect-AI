@@ -1613,131 +1613,525 @@ elif st.session_state.page == "insights":
     page_head(
         "03 · OCEAN INTELLIGENCE",
         "Find the patterns that matter.",
-        "The latest processed field is summarized through spatial concentration, Chl-a distribution, change and current screening priorities. Each chart answers a different question and uses only stored project data.",
+        "The latest processed field is summarized through spatial concentration, Chl-a distribution, change and current screening priorities. Each view answers a different question and uses only stored project data.",
     )
 
-    change_series = pd.to_numeric(latest.get("chla_change", pd.Series(index=latest.index, dtype=float)), errors="coerce")
-    anomaly_series = pd.to_numeric(latest.get("chla_anomaly", pd.Series(index=latest.index, dtype=float)), errors="coerce")
+    # --------------------------------------------------------
+    # CORE SIGNALS
+    # --------------------------------------------------------
+    change_series = pd.to_numeric(
+        latest.get(
+            "chla_change",
+            pd.Series(index=latest.index, dtype=float)
+        ),
+        errors="coerce",
+    )
+
+    anomaly_series = pd.to_numeric(
+        latest.get(
+            "chla_anomaly",
+            pd.Series(index=latest.index, dtype=float)
+        ),
+        errors="coerce",
+    )
+
+    chla_series = pd.to_numeric(
+        latest.get(
+            "chla",
+            pd.Series(index=latest.index, dtype=float)
+        ),
+        errors="coerce",
+    )
+
     positive_change = int((change_series > 0).sum())
-    anomaly_count = int((anomaly_series >= ANOMALY_THRESHOLD).sum())
+    anomaly_count = int(
+        (anomaly_series >= ANOMALY_THRESHOLD).sum()
+    )
+
+    valid_chla = chla_series.dropna()
+    median_chla = (
+        float(valid_chla.median())
+        if not valid_chla.empty
+        else np.nan
+    )
 
     c1, c2, c3, c4 = st.columns(4)
-    with c1: metric("Potential-risk cells", f"{len(risk_latest):,}", "latest screening")
-    with c2: metric("Positive Chl-a change", f"{positive_change:,}", "change > 0")
-    with c3: metric("Anomalous cells", f"{anomaly_count:,}", f"anomaly ≥ {ANOMALY_THRESHOLD:.4f}")
-    with c4: metric("Normal screening field", f"{max(len(latest)-len(risk_latest),0):,}", "not currently flagged")
 
-    # Spatial concentration
-    st.markdown('<div class="section-label">Spatial concentration</div>', unsafe_allow_html=True)
+    with c1:
+        metric(
+            "Potential-risk cells",
+            f"{len(risk_latest):,}",
+            "latest screening"
+        )
+
+    with c2:
+        metric(
+            "Positive Chl-a change",
+            f"{positive_change:,}",
+            "change > 0"
+        )
+
+    with c3:
+        metric(
+            "Anomalous cells",
+            f"{anomaly_count:,}",
+            f"anomaly ≥ {ANOMALY_THRESHOLD:.4f}"
+        )
+
+    with c4:
+        metric(
+            "Median Chl-a",
+            fmt_num(median_chla),
+            "latest field"
+        )
+
+    # --------------------------------------------------------
+    # SIGNAL INTERPRETATION
+    # --------------------------------------------------------
+    st.markdown(
+        '<div class="section-label">Signal interpretation</div>',
+        unsafe_allow_html=True
+    )
+
+    valid_signal = pd.DataFrame({
+        "change": change_series,
+        "anomaly": anomaly_series,
+    }).dropna()
+
+    if not valid_signal.empty:
+
+        high_anomaly = (
+            valid_signal["anomaly"] >= ANOMALY_THRESHOLD
+        )
+
+        rising = (
+            valid_signal["change"] > CHANGE_THRESHOLD
+        )
+
+        emerging = int((high_anomaly & rising).sum())
+        persistent = int((high_anomaly & ~rising).sum())
+        rapid_change = int((~high_anomaly & rising).sum())
+        baseline = int(
+            (~high_anomaly & ~rising).sum()
+        )
+
+        signal_total = len(valid_signal)
+
+        signal_df = pd.DataFrame({
+            "Signal state": [
+                "Emerging signal",
+                "Persistent elevated",
+                "Rapid change",
+                "Baseline"
+            ],
+            "Cells": [
+                emerging,
+                persistent,
+                rapid_change,
+                baseline
+            ],
+            "Meaning": [
+                "Elevated anomaly with recent increase",
+                "Elevated anomaly without strong recent increase",
+                "Recent increase without strong anomaly",
+                "Neither signal is elevated"
+            ]
+        })
+
+        s1, s2, s3, s4 = st.columns(4)
+
+        with s1:
+            metric(
+                "Emerging signal",
+                f"{emerging:,}",
+                "anomaly + rising Chl-a"
+            )
+
+        with s2:
+            metric(
+                "Persistent elevated",
+                f"{persistent:,}",
+                "anomaly without strong rise"
+            )
+
+        with s3:
+            metric(
+                "Rapid change",
+                f"{rapid_change:,}",
+                "rising Chl-a"
+            )
+
+        with s4:
+            metric(
+                "Baseline",
+                f"{baseline:,}",
+                "no elevated signal"
+            )
+
+        st.markdown(
+            '<div class="callout">'
+            '<strong>How to interpret this:</strong> '
+            'The matrix combines two existing signals, anomaly and recent Chl-a change, '
+            'to distinguish developing, persistent and rapidly changing conditions. '
+            'It is an analytical classification, not a separate ML prediction or a confirmed HAB diagnosis.'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    else:
+        st.info(
+            "Anomaly and recent-change fields are not sufficiently available "
+            "to build the signal interpretation matrix."
+        )
+
+    # --------------------------------------------------------
+    # SPATIAL CONCENTRATION
+    # --------------------------------------------------------
+    st.markdown(
+        '<div class="section-label">Spatial concentration</div>',
+        unsafe_allow_html=True
+    )
+
     if not risk_latest.empty:
+
         zone = risk_latest.copy()
-        zone["lat_zone"] = np.floor(zone.latitude / 5) * 5
-        zone["lon_zone"] = np.floor(zone.longitude / 5) * 5
-        zone = zone.groupby(["lat_zone", "lon_zone"], as_index=False).size().rename(columns={"size": "cells"})
-        zone["zone"] = zone.apply(lambda r: f"{r.lat_zone:.0f}°–{r.lat_zone+5:.0f}° · {r.lon_zone:.0f}°–{r.lon_zone+5:.0f}°", axis=1)
-        zone = zone.nlargest(10, "cells").sort_values("cells")
-        fig = px.bar(zone, x="cells", y="zone", orientation="h", text="cells")
-        fig.update_traces(marker_color="#e84e5d", textposition="outside")
+
+        zone["lat_zone"] = np.floor(
+            zone.latitude / 5
+        ) * 5
+
+        zone["lon_zone"] = np.floor(
+            zone.longitude / 5
+        ) * 5
+
+        zone = (
+            zone
+            .groupby(
+                ["lat_zone", "lon_zone"],
+                as_index=False
+            )
+            .size()
+            .rename(columns={"size": "cells"})
+        )
+
+        zone["zone"] = zone.apply(
+            lambda r:
+            f"{r.lat_zone:.0f}°–{r.lat_zone+5:.0f}° · "
+            f"{r.lon_zone:.0f}°–{r.lon_zone+5:.0f}°",
+            axis=1
+        )
+
+        zone = (
+            zone
+            .nlargest(10, "cells")
+            .sort_values("cells")
+        )
+
+        fig = px.bar(
+            zone,
+            x="cells",
+            y="zone",
+            orientation="h",
+            text="cells"
+        )
+
+        fig.update_traces(
+            marker_color="#e84e5d",
+            textposition="outside"
+        )
+
         fig.update_layout(
-            height=430,
-            margin=dict(l=150, r=45, t=20, b=60),
+            height=400,
+            margin=dict(
+                l=150,
+                r=45,
+                t=20,
+                b=55
+            ),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="white",
-            font=dict(family="DM Sans", color="#0b3e49"),
+            font=dict(
+                family="DM Sans",
+                color="#0b3e49"
+            ),
             showlegend=False,
             xaxis=dict(
-                title=dict(text="Potential-risk screening cells", font=dict(color="#0b3e49", size=13)),
-                tickfont=dict(color="#0b3e49", size=11),
+                title=dict(
+                    text="Potential-risk screening cells",
+                    font=dict(
+                        color="#0b3e49",
+                        size=13
+                    )
+                ),
+                tickfont=dict(
+                    color="#0b3e49",
+                    size=11
+                ),
                 gridcolor="#d7e9ea",
                 zerolinecolor="#9fcbd0",
             ),
             yaxis=dict(
-                title=dict(text="", font=dict(color="#0b3e49")),
-                tickfont=dict(color="#0b3e49", size=11),
+                title=dict(
+                    text="",
+                    font=dict(color="#0b3e49")
+                ),
+                tickfont=dict(
+                    color="#0b3e49",
+                    size=11
+                ),
             ),
         )
-        st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={"displaylogo": False}
+        )
+
     else:
-        st.info("No potential-risk cells are present in the latest field, so there is no concentration chart to fabricate.")
+        st.info(
+            "No potential-risk cells are present in the latest field, "
+            "so there is no concentration chart to fabricate."
+        )
 
-    # Two genuinely different distributions
+    # --------------------------------------------------------
+    # DISTRIBUTIONS
+    # --------------------------------------------------------
     a, b = st.columns(2, gap="large")
-    with a:
-        card("Chl-a distribution", "Distribution of valid positive chlorophyll-a observations in the latest field.")
-        valid = latest.loc[latest.chla > 0, "chla"].dropna()
-        if not valid.empty:
-            fig = px.histogram(valid, nbins=45)
-            fig.update_traces(marker_color="#2387aa")
-            fig.update_layout(
-                height=360,
-                margin=dict(l=55, r=15, t=18, b=58),
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                font=dict(family="DM Sans", color="#0b3e49"),
-                showlegend=False,
-                xaxis=dict(
-                    title=dict(text="Chlorophyll-a", font=dict(color="#0b3e49", size=13)),
-                    tickfont=dict(color="#0b3e49", size=11),
-                    gridcolor="#d7e9ea",
-                    zerolinecolor="#9fcbd0",
-                ),
-                yaxis=dict(
-                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
-                    tickfont=dict(color="#0b3e49", size=11),
-                    gridcolor="#d7e9ea",
-                ),
-            )
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-    with b:
-        card("Recent Chl-a change", "The distribution of change relative to the previous observation, where that field exists.")
-        change = change_series.dropna()
-        if not change.empty:
-            fig = px.histogram(change, nbins=45)
-            fig.update_traces(marker_color="#22a878")
-            fig.add_vline(x=CHANGE_THRESHOLD, line_dash="dash", line_color="#d8952e")
-            fig.update_layout(
-                height=360,
-                margin=dict(l=55, r=15, t=18, b=58),
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                font=dict(family="DM Sans", color="#0b3e49"),
-                showlegend=False,
-                xaxis=dict(
-                    title=dict(text="Chl-a change", font=dict(color="#0b3e49", size=13)),
-                    tickfont=dict(color="#0b3e49", size=11),
-                    gridcolor="#d7e9ea",
-                    zerolinecolor="#9fcbd0",
-                ),
-                yaxis=dict(
-                    title=dict(text="Cells", font=dict(color="#0b3e49", size=13)),
-                    tickfont=dict(color="#0b3e49", size=11),
-                    gridcolor="#d7e9ea",
-                ),
-            )
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
-        else:
-            st.info("Recent-change values are not present in the latest field.")
 
-    # Screening priority table
-    st.markdown('<div class="section-label">Current screening priorities</div>', unsafe_allow_html=True)
+    with a:
+
+        card(
+            "Chl-a distribution",
+            "Distribution of valid positive chlorophyll-a observations in the latest field."
+        )
+
+        valid = latest.loc[
+            latest.chla > 0,
+            "chla"
+        ].dropna()
+
+        if not valid.empty:
+
+            fig = px.histogram(
+                valid,
+                nbins=45
+            )
+
+            fig.update_traces(
+                marker_color="#2387aa"
+            )
+
+            fig.update_layout(
+                height=350,
+                margin=dict(
+                    l=55,
+                    r=15,
+                    t=18,
+                    b=58
+                ),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(
+                    family="DM Sans",
+                    color="#0b3e49"
+                ),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(
+                        text="Chlorophyll-a",
+                        font=dict(
+                            color="#0b3e49",
+                            size=13
+                        )
+                    ),
+                    tickfont=dict(
+                        color="#0b3e49",
+                        size=11
+                    ),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(
+                        text="Cells",
+                        font=dict(
+                            color="#0b3e49",
+                            size=13
+                        )
+                    ),
+                    tickfont=dict(
+                        color="#0b3e49",
+                        size=11
+                    ),
+                    gridcolor="#d7e9ea",
+                ),
+            )
+
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={"displaylogo": False}
+            )
+
+    with b:
+
+        card(
+            "Recent Chl-a change",
+            "Distribution of change relative to the previous observation, where that field exists."
+        )
+
+        change = change_series.dropna()
+
+        if not change.empty:
+
+            fig = px.histogram(
+                change,
+                nbins=45
+            )
+
+            fig.update_traces(
+                marker_color="#22a878"
+            )
+
+            fig.add_vline(
+                x=CHANGE_THRESHOLD,
+                line_dash="dash",
+                line_color="#d8952e"
+            )
+
+            fig.update_layout(
+                height=350,
+                margin=dict(
+                    l=55,
+                    r=15,
+                    t=18,
+                    b=58
+                ),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(
+                    family="DM Sans",
+                    color="#0b3e49"
+                ),
+                showlegend=False,
+                xaxis=dict(
+                    title=dict(
+                        text="Chl-a change",
+                        font=dict(
+                            color="#0b3e49",
+                            size=13
+                        )
+                    ),
+                    tickfont=dict(
+                        color="#0b3e49",
+                        size=11
+                    ),
+                    gridcolor="#d7e9ea",
+                    zerolinecolor="#9fcbd0",
+                ),
+                yaxis=dict(
+                    title=dict(
+                        text="Cells",
+                        font=dict(
+                            color="#0b3e49",
+                            size=13
+                        )
+                    ),
+                    tickfont=dict(
+                        color="#0b3e49",
+                        size=11
+                    ),
+                    gridcolor="#d7e9ea",
+                ),
+            )
+
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={"displaylogo": False}
+            )
+
+        else:
+            st.info(
+                "Recent-change values are not present in the latest field."
+            )
+
+    # --------------------------------------------------------
+    # SCREENING PRIORITIES
+    # --------------------------------------------------------
+    st.markdown(
+        '<div class="section-label">Current screening priorities</div>',
+        unsafe_allow_html=True
+    )
+
     if not risk_latest.empty:
-        sort_col = "risk_probability" if "risk_probability" in risk_latest.columns else "chla"
-        priority = risk_latest.sort_values(sort_col, ascending=False).head(12).copy()
-        priority["Location"] = priority.apply(lambda r: f"{r.latitude:.3f}°, {r.longitude:.3f}°", axis=1)
+
+        sort_col = (
+            "risk_probability"
+            if "risk_probability" in risk_latest.columns
+            else "chla"
+        )
+
+        priority = (
+            risk_latest
+            .sort_values(
+                sort_col,
+                ascending=False
+            )
+            .head(12)
+            .copy()
+        )
+
+        priority["Location"] = priority.apply(
+            lambda r:
+            f"{r.latitude:.3f}°, {r.longitude:.3f}°",
+            axis=1
+        )
+
         table = pd.DataFrame({
             "Location": priority.Location,
             "Chl-a": priority.chla.round(4),
-            "Risk probability": priority["risk_probability"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "Unavailable") if "risk_probability" in priority else "Unavailable",
-            "Anomaly": priority["chla_anomaly"].round(4) if "chla_anomaly" in priority else np.nan,
-            "Recent change": priority["chla_change"].round(4) if "chla_change" in priority else np.nan,
+            "Risk probability":
+                priority["risk_probability"].map(
+                    lambda x:
+                    f"{x:.1%}"
+                    if pd.notna(x)
+                    else "Unavailable"
+                )
+                if "risk_probability" in priority
+                else "Unavailable",
+            "Anomaly":
+                priority["chla_anomaly"].round(4)
+                if "chla_anomaly" in priority
+                else np.nan,
+            "Recent change":
+                priority["chla_change"].round(4)
+                if "chla_change" in priority
+                else np.nan,
         })
-        st.dataframe(table, width="stretch", hide_index=True)
-    else:
-        st.info("No current screening priorities are available in the latest field.")
 
-    # Regional summary is useful and is not a duplicate of the risk table.
-    st.markdown('<div class="section-label">Regional view</div>', unsafe_allow_html=True)
+        st.dataframe(
+            table,
+            width="stretch",
+            hide_index=True
+        )
+
+    else:
+        st.info(
+            "No current screening priorities are available in the latest field."
+        )
+
+    # --------------------------------------------------------
+    # REGIONAL VIEW
+    # --------------------------------------------------------
+    st.markdown(
+        '<div class="section-label">Regional view</div>',
+        unsafe_allow_html=True
+    )
+
     regional = latest.copy()
+
     def region(lat, lon):
         if lon >= 75 and lat >= 0:
             return "Bay of Bengal"
@@ -1746,26 +2140,66 @@ elif st.session_state.page == "insights":
         if lon >= 55 and lat < 0:
             return "Southern Indian Ocean"
         return "Northern Indian Ocean"
-    regional["Region"] = [region(a, b) for a, b in zip(regional.latitude, regional.longitude)]
-    summary = regional.groupby("Region").agg(
-        Processed_cells=("Region", "size"),
-        Potential_risk=("risk_flag", "sum"),
-        Mean_Chl_a=("chla", "mean"),
-        Maximum_Chl_a=("chla", "max"),
-    ).reset_index()
-    summary["Risk_share"] = summary.Potential_risk / summary.Processed_cells * 100
-    summary = summary.sort_values("Potential_risk", ascending=False)
-    st.dataframe(summary.rename(columns={
-        "Processed_cells": "Processed cells",
-        "Potential_risk": "Potential-risk cells",
-        "Mean_Chl_a": "Mean Chl-a",
-        "Maximum_Chl_a": "Maximum Chl-a",
-        "Risk_share": "Risk share (%)",
-    }).round(4), width="stretch", hide_index=True)
 
-    st.markdown('<div class="callout"><strong>Scientific caution:</strong> these are descriptive satellite-derived signals and proxy screening results. They do not identify algal species or toxins and do not confirm a harmful algal bloom.</div>', unsafe_allow_html=True)
+    regional["Region"] = [
+        region(a, b)
+        for a, b in zip(
+            regional.latitude,
+            regional.longitude
+        )
+    ]
+
+    summary = (
+        regional
+        .groupby("Region")
+        .agg(
+            Processed_cells=("Region", "size"),
+            Potential_risk=("risk_flag", "sum"),
+            Mean_Chl_a=("chla", "mean"),
+            Maximum_Chl_a=("chla", "max"),
+        )
+        .reset_index()
+    )
+
+    summary["Risk_share"] = (
+        summary.Potential_risk
+        / summary.Processed_cells
+        * 100
+    )
+
+    summary = summary.sort_values(
+        "Potential_risk",
+        ascending=False
+    )
+
+    st.dataframe(
+        summary.rename(
+            columns={
+                "Processed_cells": "Processed cells",
+                "Potential_risk": "Potential-risk cells",
+                "Mean_Chl_a": "Mean Chl-a",
+                "Maximum_Chl_a": "Maximum Chl-a",
+                "Risk_share": "Risk share (%)",
+            }
+        ).round(4),
+        width="stretch",
+        hide_index=True
+    )
+
+    # --------------------------------------------------------
+    # SCIENTIFIC BOUNDARY
+    # --------------------------------------------------------
+    st.markdown(
+        '<div class="callout">'
+        '<strong>Scientific caution:</strong> '
+        'these are descriptive satellite-derived signals and proxy screening results. '
+        'They do not identify algal species or toxins and do not confirm a harmful algal bloom.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
     footer()
-
+    
 # ============================================================
 # DATA
 # ============================================================
