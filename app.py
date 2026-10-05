@@ -564,7 +564,6 @@ if st.session_state.page == "home":
         )
 
     footer()
-
 # ============================================================
 # RISK MAP
 # ============================================================
@@ -577,173 +576,191 @@ elif st.session_state.page == "map":
     )
 
     if history_available:
-        dates = sorted(history.date.dt.normalize().dropna().unique())
-        date_values = [pd.Timestamp(d).date() for d in dates]
+        dates = sorted(
+            history.date.dt.normalize().dropna().unique()
+        )
+
+        date_values = [
+            pd.Timestamp(d).date()
+            for d in dates
+        ]
 
         selected_date = st.select_slider(
             "Observation date",
             options=date_values,
             value=date_values[-1],
-            format_func=lambda x: pd.Timestamp(x).strftime("%d %b %Y"),
+            format_func=lambda x: pd.Timestamp(x).strftime(
+                "%d %b %Y"
+            ),
             key="timeline_date",
         )
 
         selected_ts = pd.Timestamp(selected_date)
+
         selected = history[
-            history.date.dt.normalize() == selected_ts.normalize()
+            history.date.dt.normalize()
+            == selected_ts.normalize()
         ].copy()
 
-        # Latest date: keep the real final screening output,
-        # but render it using the same regular spatial-dot style
-        # as the historical maps.
-        is_latest = selected_ts.normalize() == latest_date.normalize()
+        # ========================================================
+        # SAME MAP FORMAT FOR EVERY DATE
+        # ========================================================
+        #
+        # Historical data already uses a compact 1° grid:
+        # lat_bin / lon_bin
+        #
+        # The latest field contains the full-resolution
+        # 70,812-cell output, so it is converted to the SAME
+        # compact 1° grid before plotting.
+        #
+        # This changes ONLY the visual aggregation.
+        # The actual latest screening counts and model output
+        # remain unchanged.
+        # ========================================================
+
+        is_latest = (
+            selected_ts.normalize()
+            == latest_date.normalize()
+        )
 
         if is_latest:
+
             processed_count = len(latest)
             risk_count = len(risk_latest)
+
             risk_share = (
                 risk_count / processed_count * 100
                 if processed_count
                 else 0
             )
 
-            plot_field = latest[
-                ["latitude", "longitude", "chla"]
+            # ----------------------------------------------------
+            # Convert latest full-resolution field to the same
+            # compact 1° spatial grid used by history.
+            # ----------------------------------------------------
+
+            latest_compact = latest[
+                [
+                    "latitude",
+                    "longitude",
+                    "chla",
+                ]
             ].copy()
 
-            plot_field = plot_field.dropna(
-                subset=["latitude", "longitude", "chla"]
+            latest_compact = latest_compact.dropna(
+                subset=[
+                    "latitude",
+                    "longitude",
+                    "chla",
+                ]
             )
 
-            plot_field = plot_field[
-                plot_field["chla"] > 0
+            latest_compact = latest_compact[
+                latest_compact["chla"] > 0
             ].copy()
 
-            # Create a regular display grid.
-            # This changes only the visual rendering,
-            # not the underlying data or screening results.
-            plot_field["_lat"] = (
-                plot_field["latitude"] / 0.25
-            ).round() * 0.25
+            # EXACT SAME 1° spatial representation
+            # used by the compact historical dataset.
+            latest_compact["lat_bin"] = (
+                latest_compact["latitude"]
+                .round()
+            )
 
-            plot_field["_lon"] = (
-                plot_field["longitude"] / 0.25
-            ).round() * 0.25
+            latest_compact["lon_bin"] = (
+                latest_compact["longitude"]
+                .round()
+            )
 
-            plot_field = (
-                plot_field
-                .groupby(["_lat", "_lon"], as_index=False)["chla"]
-                .mean()
-                .rename(
-                    columns={
-                        "_lat": "latitude",
-                        "_lon": "longitude",
-                    }
+            latest_compact = (
+                latest_compact
+                .groupby(
+                    ["lat_bin", "lon_bin"],
+                    as_index=False
                 )
-            )
-
-            map_fig = base_map()
-
-            # Processed ocean field
-            map_fig.add_trace(
-                go.Scattergeo(
-                    lon=plot_field.longitude,
-                    lat=plot_field.latitude,
-                    mode="markers",
-                    name="Processed field",
-                    marker=dict(
-                        size=5.4,
-                        color="#2387aa",
-                        opacity=.38,
-                    ),
-                    customdata=plot_field.chla,
-                    hovertemplate=(
-                        "Lat %{lat:.2f}°<br>"
-                        "Lon %{lon:.2f}°<br>"
-                        "Chl-a %{customdata:.4f}"
-                        "<extra></extra>"
-                    ),
+                .agg(
+                    chla=("chla", "mean"),
+                    cells=("chla", "size"),
                 )
             )
 
-            # Higher concentration
-            high = plot_field[
-                plot_field.chla >= plot_field.chla.quantile(.90)
+            # ----------------------------------------------------
+            # Preserve the ACTUAL latest risk cells.
+            #
+            # A compact map cannot display every full-resolution
+            # cell separately, so risk is mapped into the same
+            # 1° grid while retaining a risk flag if ANY actual
+            # latest risk cell falls inside that grid cell.
+            # ----------------------------------------------------
+
+            latest_risk_grid = latest[
+                latest["risk_flag"].astype(bool)
+            ][
+                [
+                    "latitude",
+                    "longitude",
+                ]
             ].copy()
 
-            if not high.empty:
-                if len(high) > 4500:
-                    high = high.sample(
-                        4500,
-                        random_state=42
-                    )
+            if not latest_risk_grid.empty:
 
-                map_fig.add_trace(
-                    go.Scattergeo(
-                        lon=high.longitude,
-                        lat=high.latitude,
-                        mode="markers",
-                        name="Higher concentration",
-                        marker=dict(
-                            size=7,
-                            color="#22a878",
-                            opacity=.52,
-                        ),
-                        hovertemplate=(
-                            "Higher Chl-a concentration"
-                            "<extra></extra>"
-                        ),
-                    )
+                latest_risk_grid["lat_bin"] = (
+                    latest_risk_grid["latitude"]
+                    .round()
                 )
 
-            # Actual final potential-risk cells
-            flagged = latest[
-                latest.risk_flag.astype(bool)
-            ].copy()
-
-            if not flagged.empty:
-                map_fig.add_trace(
-                    go.Scattergeo(
-                        lon=flagged.longitude,
-                        lat=flagged.latitude,
-                        mode="markers",
-                        name="Potential-risk cell",
-                        marker=dict(
-                            size=9,
-                            color="#e84e5d",
-                            opacity=.94,
-                            line=dict(
-                                width=.5,
-                                color="white",
-                            ),
-                        ),
-                        customdata=np.c_[
-                            flagged.chla,
-                            (
-                                flagged["risk_probability"]
-                                if "risk_probability" in flagged
-                                else np.nan
-                            ),
-                        ],
-                        hovertemplate=(
-                            "Lat %{lat:.3f}°<br>"
-                            "Lon %{lon:.3f}°<br>"
-                            "Chl-a %{customdata[0]:.4f}<br>"
-                            "Screening probability "
-                            "%{customdata[1]:.1%}"
-                            "<extra></extra>"
-                        ),
-                    )
+                latest_risk_grid["lon_bin"] = (
+                    latest_risk_grid["longitude"]
+                    .round()
                 )
+
+                risk_bins = (
+                    latest_risk_grid[
+                        [
+                            "lat_bin",
+                            "lon_bin",
+                        ]
+                    ]
+                    .drop_duplicates()
+                )
+
+                latest_compact = latest_compact.merge(
+                    risk_bins.assign(risk=1),
+                    on=[
+                        "lat_bin",
+                        "lon_bin",
+                    ],
+                    how="left",
+                )
+
+                latest_compact["risk"] = (
+                    latest_compact["risk"]
+                    .fillna(0)
+                    .astype(int)
+                )
+
+            else:
+                latest_compact["risk"] = 0
+
+            # Use the SAME renderer as every historical date.
+            map_fig = history_map(
+                latest_compact
+            )
 
             timeline_note = (
-                "Latest field uses the stored final screening output, "
-                "rendered on the same regular map grid as earlier observations."
+                "Latest field uses the stored final screening "
+                "output. The map is displayed on the same "
+                "compact 1° spatial grid used across the "
+                "historical timeline."
             )
 
         else:
+
+            # Historical dates already use the compact 1° grid.
             processed_count = len(selected)
-            risk_count = int(selected.risk.sum())
+
+            risk_count = int(
+                selected["risk"].sum()
+            )
 
             risk_share = (
                 risk_count / processed_count * 100
@@ -751,14 +768,20 @@ elif st.session_state.page == "map":
                 else 0
             )
 
-            map_fig = history_map(selected)
-
-            timeline_note = (
-                "Earlier dates use compact historical Chl-a screening, "
-                "not another ML prediction."
+            # SAME renderer as the latest date.
+            map_fig = history_map(
+                selected
             )
 
-        # Existing metric cards remain unchanged
+            timeline_note = (
+                "Earlier dates use compact historical Chl-a "
+                "screening, not another ML prediction."
+            )
+
+        # ========================================================
+        # EXISTING METRIC CARDS
+        # ========================================================
+
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
@@ -788,6 +811,10 @@ elif st.session_state.page == "map":
                 f"{risk_share:.2f}%",
                 "selected field",
             )
+
+        # ========================================================
+        # MAP
+        # ========================================================
 
         st.markdown(
             '<div class="map-shell">'
@@ -831,40 +858,46 @@ elif st.session_state.page == "map":
             unsafe_allow_html=True,
         )
 
-        # --------------------------------------------------------
-        # UNIQUE ADDITION: SPATIAL RISK PATTERN
-        # --------------------------------------------------------
+        # ========================================================
+        # UNIQUE MAP INTERPRETATION
+        # ========================================================
+        # This is not another duplicate risk metric.
+        # It describes whether risk cells are spatially clustered.
+        # ========================================================
 
         if is_latest:
-            flagged_for_pattern = latest[
-                latest.risk_flag.astype(bool)
+
+            pattern_source = latest[
+                latest["risk_flag"].astype(bool)
             ].copy()
 
-            risk_lat_col = "latitude"
-            risk_lon_col = "longitude"
+            pattern_lat = "latitude"
+            pattern_lon = "longitude"
 
         else:
-            flagged_for_pattern = selected[
-                selected.risk.astype(bool)
+
+            pattern_source = selected[
+                selected["risk"].astype(bool)
             ].copy()
 
-            risk_lat_col = "lat_bin"
-            risk_lon_col = "lon_bin"
+            pattern_lat = "lat_bin"
+            pattern_lon = "lon_bin"
 
-        if not flagged_for_pattern.empty:
+        if not pattern_source.empty:
 
             cells = set()
 
             for lat, lon in zip(
-                flagged_for_pattern[risk_lat_col],
-                flagged_for_pattern[risk_lon_col],
+                pattern_source[pattern_lat],
+                pattern_source[pattern_lon],
             ):
+
                 if pd.notna(lat) and pd.notna(lon):
 
                     cells.add(
                         (
-                            int(round(float(lat) / 0.25)),
-                            int(round(float(lon) / 0.25)),
+                            int(round(float(lat))),
+                            int(round(float(lon))),
                         )
                     )
 
@@ -875,8 +908,10 @@ elif st.session_state.page == "map":
             while remaining:
 
                 start = remaining.pop()
+
                 stack = [start]
-                size = 1
+
+                cluster_size = 1
 
                 while stack:
 
@@ -888,25 +923,34 @@ elif st.session_state.page == "map":
                             if dr == 0 and dc == 0:
                                 continue
 
-                            neighbor = (
+                            neighbour = (
                                 r + dr,
                                 c + dc,
                             )
 
-                            if neighbor in remaining:
+                            if neighbour in remaining:
 
-                                remaining.remove(neighbor)
-                                stack.append(neighbor)
-                                size += 1
+                                remaining.remove(
+                                    neighbour
+                                )
+
+                                stack.append(
+                                    neighbour
+                                )
+
+                                cluster_size += 1
 
                 clusters += 1
+
                 largest_cluster = max(
                     largest_cluster,
-                    size,
+                    cluster_size,
                 )
 
             concentration = (
-                largest_cluster / len(cells) * 100
+                largest_cluster
+                / len(cells)
+                * 100
                 if cells
                 else 0
             )
@@ -914,11 +958,14 @@ elif st.session_state.page == "map":
             pattern_text = (
                 f"The selected field contains "
                 f"<b>{clusters}</b> spatial risk "
-                f"cluster{'s' if clusters != 1 else ''}. "
+                f"cluster"
+                f"{'s' if clusters != 1 else ''}. "
                 f"The largest cluster contains "
-                f"<b>{largest_cluster}</b> screening "
-                f"cell{'s' if largest_cluster != 1 else ''} "
-                f"({concentration:.1f}% of clustered risk cells). "
+                f"<b>{largest_cluster}</b> "
+                f"screening grid cell"
+                f"{'s' if largest_cluster != 1 else ''} "
+                f"({concentration:.1f}% of clustered "
+                f"risk cells). "
                 f"This describes spatial concentration only; "
                 f"it is not a forecast of bloom movement."
             )
@@ -927,7 +974,8 @@ elif st.session_state.page == "map":
 
             pattern_text = (
                 "No potential-risk cells are present in the "
-                "selected field, so no spatial risk cluster is reported."
+                "selected field, so no spatial risk cluster "
+                "is reported."
             )
 
         st.markdown(
@@ -937,6 +985,10 @@ elif st.session_state.page == "map":
             f'</div>',
             unsafe_allow_html=True,
         )
+
+        # ========================================================
+        # HOW TO READ
+        # ========================================================
 
         st.markdown(
             f'<div class="callout">'
@@ -951,9 +1003,9 @@ elif st.session_state.page == "map":
     else:
 
         st.info(
-            "The compact history file is not present in this deployment. "
-            "The latest processed field is still available below. "
-            "No fake timeline is being created."
+            "The compact history file is not present in this "
+            "deployment. The latest processed field is still "
+            "available below. No fake timeline is being created."
         )
 
         view = st.selectbox(
@@ -967,7 +1019,10 @@ elif st.session_state.page == "map":
             key="map_view",
         )
 
-        fig = latest_map(latest, view)
+        fig = latest_map(
+            latest,
+            view,
+        )
 
         if fig is not None:
 
