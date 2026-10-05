@@ -565,7 +565,6 @@ if st.session_state.page == "home":
 
     footer()
 
-
 # ============================================================
 # RISK MAP
 # ============================================================
@@ -580,6 +579,7 @@ elif st.session_state.page == "map":
     if history_available:
         dates = sorted(history.date.dt.normalize().dropna().unique())
         date_values = [pd.Timestamp(d).date() for d in dates]
+
         selected_date = st.select_slider(
             "Observation date",
             options=date_values,
@@ -587,43 +587,426 @@ elif st.session_state.page == "map":
             format_func=lambda x: pd.Timestamp(x).strftime("%d %b %Y"),
             key="timeline_date",
         )
-        selected_ts = pd.Timestamp(selected_date)
-        selected = history[history.date.dt.normalize() == selected_ts.normalize()].copy()
 
-        # The history file is compact context. The final date can be compared with the actual latest field.
+        selected_ts = pd.Timestamp(selected_date)
+        selected = history[
+            history.date.dt.normalize() == selected_ts.normalize()
+        ].copy()
+
+        # Latest date: keep the real final screening output,
+        # but render it using the same regular spatial-dot style
+        # as the historical maps.
         is_latest = selected_ts.normalize() == latest_date.normalize()
+
         if is_latest:
             processed_count = len(latest)
             risk_count = len(risk_latest)
-            risk_share = risk_count / processed_count * 100 if processed_count else 0
-            map_fig = latest_map(latest, "Screening")
-            timeline_note = "Latest field uses the stored final screening output."
+            risk_share = (
+                risk_count / processed_count * 100
+                if processed_count
+                else 0
+            )
+
+            plot_field = latest[
+                ["latitude", "longitude", "chla"]
+            ].copy()
+
+            plot_field = plot_field.dropna(
+                subset=["latitude", "longitude", "chla"]
+            )
+
+            plot_field = plot_field[
+                plot_field["chla"] > 0
+            ].copy()
+
+            # Create a regular display grid.
+            # This changes only the visual rendering,
+            # not the underlying data or screening results.
+            plot_field["_lat"] = (
+                plot_field["latitude"] / 0.25
+            ).round() * 0.25
+
+            plot_field["_lon"] = (
+                plot_field["longitude"] / 0.25
+            ).round() * 0.25
+
+            plot_field = (
+                plot_field
+                .groupby(["_lat", "_lon"], as_index=False)["chla"]
+                .mean()
+                .rename(
+                    columns={
+                        "_lat": "latitude",
+                        "_lon": "longitude",
+                    }
+                )
+            )
+
+            map_fig = base_map()
+
+            # Processed ocean field
+            map_fig.add_trace(
+                go.Scattergeo(
+                    lon=plot_field.longitude,
+                    lat=plot_field.latitude,
+                    mode="markers",
+                    name="Processed field",
+                    marker=dict(
+                        size=5.4,
+                        color="#2387aa",
+                        opacity=.38,
+                    ),
+                    customdata=plot_field.chla,
+                    hovertemplate=(
+                        "Lat %{lat:.2f}°<br>"
+                        "Lon %{lon:.2f}°<br>"
+                        "Chl-a %{customdata:.4f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+            # Higher concentration
+            high = plot_field[
+                plot_field.chla >= plot_field.chla.quantile(.90)
+            ].copy()
+
+            if not high.empty:
+                if len(high) > 4500:
+                    high = high.sample(
+                        4500,
+                        random_state=42
+                    )
+
+                map_fig.add_trace(
+                    go.Scattergeo(
+                        lon=high.longitude,
+                        lat=high.latitude,
+                        mode="markers",
+                        name="Higher concentration",
+                        marker=dict(
+                            size=7,
+                            color="#22a878",
+                            opacity=.52,
+                        ),
+                        hovertemplate=(
+                            "Higher Chl-a concentration"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+
+            # Actual final potential-risk cells
+            flagged = latest[
+                latest.risk_flag.astype(bool)
+            ].copy()
+
+            if not flagged.empty:
+                map_fig.add_trace(
+                    go.Scattergeo(
+                        lon=flagged.longitude,
+                        lat=flagged.latitude,
+                        mode="markers",
+                        name="Potential-risk cell",
+                        marker=dict(
+                            size=9,
+                            color="#e84e5d",
+                            opacity=.94,
+                            line=dict(
+                                width=.5,
+                                color="white",
+                            ),
+                        ),
+                        customdata=np.c_[
+                            flagged.chla,
+                            (
+                                flagged["risk_probability"]
+                                if "risk_probability" in flagged
+                                else np.nan
+                            ),
+                        ],
+                        hovertemplate=(
+                            "Lat %{lat:.3f}°<br>"
+                            "Lon %{lon:.3f}°<br>"
+                            "Chl-a %{customdata[0]:.4f}<br>"
+                            "Screening probability "
+                            "%{customdata[1]:.1%}"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+
+            timeline_note = (
+                "Latest field uses the stored final screening output, "
+                "rendered on the same regular map grid as earlier observations."
+            )
+
         else:
             processed_count = len(selected)
             risk_count = int(selected.risk.sum())
-            risk_share = risk_count / processed_count * 100 if processed_count else 0
+
+            risk_share = (
+                risk_count / processed_count * 100
+                if processed_count
+                else 0
+            )
+
             map_fig = history_map(selected)
-            timeline_note = "Earlier dates use compact historical Chl-a screening, not another ML prediction."
 
+            timeline_note = (
+                "Earlier dates use compact historical Chl-a screening, "
+                "not another ML prediction."
+            )
+
+        # Existing metric cards remain unchanged
         c1, c2, c3, c4 = st.columns(4)
-        with c1: metric("Selected date", fmt_date(selected_ts), "observation")
-        with c2: metric("Processed cells", f"{processed_count:,}", "selected field")
-        with c3: metric("Potential-risk", f"{risk_count:,}", "screening cells")
-        with c4: metric("Risk share", f"{risk_share:.2f}%", "selected field")
 
-        st.markdown('<div class="map-shell"><div class="map-header"><strong>Indian Ocean · Arabian Sea · Bay of Bengal</strong><span>Blue processed field · green concentration · red potential-risk screening</span></div>', unsafe_allow_html=True)
-        st.plotly_chart(map_fig, width="stretch", config={"displaylogo": False, "scrollZoom": True, "responsive": True})
-        st.markdown('<div class="legend"><span><i style="background:#2387aa"></i>Processed ocean field</span><span><i style="background:#22a878"></i>Higher concentration</span><span><i style="background:#e84e5d"></i>Potential-risk cell</span></div></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="callout"><strong>How to read this:</strong> {timeline_note} Red cells are screening results, not confirmed harmful algal blooms.</div>', unsafe_allow_html=True)
+        with c1:
+            metric(
+                "Selected date",
+                fmt_date(selected_ts),
+                "observation",
+            )
+
+        with c2:
+            metric(
+                "Processed cells",
+                f"{processed_count:,}",
+                "selected field",
+            )
+
+        with c3:
+            metric(
+                "Potential-risk",
+                f"{risk_count:,}",
+                "screening cells",
+            )
+
+        with c4:
+            metric(
+                "Risk share",
+                f"{risk_share:.2f}%",
+                "selected field",
+            )
+
+        st.markdown(
+            '<div class="map-shell">'
+            '<div class="map-header">'
+            '<strong>'
+            'Indian Ocean · Arabian Sea · Bay of Bengal'
+            '</strong>'
+            '<span>'
+            'Blue processed field · green concentration · '
+            'red potential-risk screening'
+            '</span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.plotly_chart(
+            map_fig,
+            width="stretch",
+            config={
+                "displaylogo": False,
+                "scrollZoom": True,
+                "responsive": True,
+            },
+        )
+
+        st.markdown(
+            '<div class="legend">'
+            '<span>'
+            '<i style="background:#2387aa"></i>'
+            'Processed ocean field'
+            '</span>'
+            '<span>'
+            '<i style="background:#22a878"></i>'
+            'Higher concentration'
+            '</span>'
+            '<span>'
+            '<i style="background:#e84e5d"></i>'
+            'Potential-risk cell'
+            '</span>'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        # --------------------------------------------------------
+        # UNIQUE ADDITION: SPATIAL RISK PATTERN
+        # --------------------------------------------------------
+
+        if is_latest:
+            flagged_for_pattern = latest[
+                latest.risk_flag.astype(bool)
+            ].copy()
+
+            risk_lat_col = "latitude"
+            risk_lon_col = "longitude"
+
+        else:
+            flagged_for_pattern = selected[
+                selected.risk.astype(bool)
+            ].copy()
+
+            risk_lat_col = "lat_bin"
+            risk_lon_col = "lon_bin"
+
+        if not flagged_for_pattern.empty:
+
+            cells = set()
+
+            for lat, lon in zip(
+                flagged_for_pattern[risk_lat_col],
+                flagged_for_pattern[risk_lon_col],
+            ):
+                if pd.notna(lat) and pd.notna(lon):
+
+                    cells.add(
+                        (
+                            int(round(float(lat) / 0.25)),
+                            int(round(float(lon) / 0.25)),
+                        )
+                    )
+
+            clusters = 0
+            largest_cluster = 0
+            remaining = set(cells)
+
+            while remaining:
+
+                start = remaining.pop()
+                stack = [start]
+                size = 1
+
+                while stack:
+
+                    r, c = stack.pop()
+
+                    for dr in (-1, 0, 1):
+                        for dc in (-1, 0, 1):
+
+                            if dr == 0 and dc == 0:
+                                continue
+
+                            neighbor = (
+                                r + dr,
+                                c + dc,
+                            )
+
+                            if neighbor in remaining:
+
+                                remaining.remove(neighbor)
+                                stack.append(neighbor)
+                                size += 1
+
+                clusters += 1
+                largest_cluster = max(
+                    largest_cluster,
+                    size,
+                )
+
+            concentration = (
+                largest_cluster / len(cells) * 100
+                if cells
+                else 0
+            )
+
+            pattern_text = (
+                f"The selected field contains "
+                f"<b>{clusters}</b> spatial risk "
+                f"cluster{'s' if clusters != 1 else ''}. "
+                f"The largest cluster contains "
+                f"<b>{largest_cluster}</b> screening "
+                f"cell{'s' if largest_cluster != 1 else ''} "
+                f"({concentration:.1f}% of clustered risk cells). "
+                f"This describes spatial concentration only; "
+                f"it is not a forecast of bloom movement."
+            )
+
+        else:
+
+            pattern_text = (
+                "No potential-risk cells are present in the "
+                "selected field, so no spatial risk cluster is reported."
+            )
+
+        st.markdown(
+            f'<div class="callout">'
+            f'<strong>Spatial pattern:</strong> '
+            f'{pattern_text}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f'<div class="callout">'
+            f'<strong>How to read this:</strong> '
+            f'{timeline_note} '
+            f'Red cells are screening results, not confirmed '
+            f'harmful algal blooms.'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     else:
-        st.info("The compact history file is not present in this deployment. The latest processed field is still available below. No fake timeline is being created.")
-        view = st.selectbox("Map detail", ["Screening", "Chlorophyll-a", "Recent change", "Historical anomaly"], key="map_view")
+
+        st.info(
+            "The compact history file is not present in this deployment. "
+            "The latest processed field is still available below. "
+            "No fake timeline is being created."
+        )
+
+        view = st.selectbox(
+            "Map detail",
+            [
+                "Screening",
+                "Chlorophyll-a",
+                "Recent change",
+                "Historical anomaly",
+            ],
+            key="map_view",
+        )
+
         fig = latest_map(latest, view)
+
         if fig is not None:
-            st.markdown('<div class="map-shell"><div class="map-header"><strong>Indian Ocean · Arabian Sea · Bay of Bengal</strong><span>Study window: 40°S–30°N · 20°E–120°E</span></div>', unsafe_allow_html=True)
-            st.plotly_chart(fig, width="stretch", config={"displaylogo": False, "scrollZoom": True, "responsive": True})
-            st.markdown('<div class="legend"><span><i style="background:#2387aa"></i>Processed ocean field</span><span><i style="background:#e84e5d"></i>Potential-risk cell</span></div></div>', unsafe_allow_html=True)
+
+            st.markdown(
+                '<div class="map-shell">'
+                '<div class="map-header">'
+                '<strong>'
+                'Indian Ocean · Arabian Sea · Bay of Bengal'
+                '</strong>'
+                '<span>'
+                'Study window: 40°S–30°N · 20°E–120°E'
+                '</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={
+                    "displaylogo": False,
+                    "scrollZoom": True,
+                    "responsive": True,
+                },
+            )
+
+            st.markdown(
+                '<div class="legend">'
+                '<span>'
+                '<i style="background:#2387aa"></i>'
+                'Processed ocean field'
+                '</span>'
+                '<span>'
+                '<i style="background:#e84e5d"></i>'
+                'Potential-risk cell'
+                '</span>'
+                '</div></div>',
+                unsafe_allow_html=True,
+            )
 
     footer()
 
