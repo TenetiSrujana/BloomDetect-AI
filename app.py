@@ -564,11 +564,13 @@ if st.session_state.page == "home":
         )
 
     footer()
+
 # ============================================================
 # RISK MAP
 # ============================================================
 
 elif st.session_state.page == "map":
+
     page_head(
         "01 · SPATIAL INTELLIGENCE",
         "See the field, then change the lens.",
@@ -576,6 +578,11 @@ elif st.session_state.page == "map":
     )
 
     if history_available:
+
+        # --------------------------------------------------------
+        # OBSERVATION TIMELINE
+        # --------------------------------------------------------
+
         dates = sorted(
             history.date.dt.normalize().dropna().unique()
         )
@@ -602,30 +609,23 @@ elif st.session_state.page == "map":
             == selected_ts.normalize()
         ].copy()
 
-        # ========================================================
-        # SAME MAP FORMAT FOR EVERY DATE
-        # ========================================================
-        #
-        # Historical data already uses a compact 1° grid:
-        # lat_bin / lon_bin
-        #
-        # The latest field contains the full-resolution
-        # 70,812-cell output, so it is converted to the SAME
-        # compact 1° grid before plotting.
-        #
-        # This changes ONLY the visual aggregation.
-        # The actual latest screening counts and model output
-        # remain unchanged.
-        # ========================================================
-
         is_latest = (
             selected_ts.normalize()
             == latest_date.normalize()
         )
 
+        # ========================================================
+        # SAME MAP FORMAT FOR ALL DATES
+        # ========================================================
+
         if is_latest:
 
+            # ----------------------------------------------------
+            # ACTUAL LATEST FIELD
+            # ----------------------------------------------------
+
             processed_count = len(latest)
+
             risk_count = len(risk_latest)
 
             risk_share = (
@@ -635,8 +635,8 @@ elif st.session_state.page == "map":
             )
 
             # ----------------------------------------------------
-            # Convert latest full-resolution field to the same
-            # compact 1° spatial grid used by history.
+            # Convert latest full-resolution field into the same
+            # compact spatial representation used by history.
             # ----------------------------------------------------
 
             latest_compact = latest[
@@ -659,40 +659,35 @@ elif st.session_state.page == "map":
                 latest_compact["chla"] > 0
             ].copy()
 
-            # EXACT SAME 1° spatial representation
-            # used by the compact historical dataset.
+            # Same spatial binning used for the timeline display.
             latest_compact["lat_bin"] = (
-                latest_compact["latitude"]
-                .round()
+                latest_compact["latitude"].round()
             )
 
             latest_compact["lon_bin"] = (
-                latest_compact["longitude"]
-                .round()
+                latest_compact["longitude"].round()
             )
 
             latest_compact = (
                 latest_compact
                 .groupby(
-                    ["lat_bin", "lon_bin"],
-                    as_index=False
+                    [
+                        "lat_bin",
+                        "lon_bin",
+                    ],
+                    as_index=False,
                 )
                 .agg(
                     chla=("chla", "mean"),
-                    cells=("chla", "size"),
                 )
             )
 
             # ----------------------------------------------------
-            # Preserve the ACTUAL latest risk cells.
-            #
-            # A compact map cannot display every full-resolution
-            # cell separately, so risk is mapped into the same
-            # 1° grid while retaining a risk flag if ANY actual
-            # latest risk cell falls inside that grid cell.
+            # Mark compact cells containing at least one actual
+            # latest potential-risk cell.
             # ----------------------------------------------------
 
-            latest_risk_grid = latest[
+            latest_risk = latest[
                 latest["risk_flag"].astype(bool)
             ][
                 [
@@ -701,30 +696,29 @@ elif st.session_state.page == "map":
                 ]
             ].copy()
 
-            if not latest_risk_grid.empty:
+            if not latest_risk.empty:
 
-                latest_risk_grid["lat_bin"] = (
-                    latest_risk_grid["latitude"]
-                    .round()
+                latest_risk["lat_bin"] = (
+                    latest_risk["latitude"].round()
                 )
 
-                latest_risk_grid["lon_bin"] = (
-                    latest_risk_grid["longitude"]
-                    .round()
+                latest_risk["lon_bin"] = (
+                    latest_risk["longitude"].round()
                 )
 
                 risk_bins = (
-                    latest_risk_grid[
+                    latest_risk[
                         [
                             "lat_bin",
                             "lon_bin",
                         ]
                     ]
                     .drop_duplicates()
+                    .assign(risk=1)
                 )
 
                 latest_compact = latest_compact.merge(
-                    risk_bins.assign(risk=1),
+                    risk_bins,
                     on=[
                         "lat_bin",
                         "lon_bin",
@@ -739,23 +733,45 @@ elif st.session_state.page == "map":
                 )
 
             else:
+
                 latest_compact["risk"] = 0
 
-            # Use the SAME renderer as every historical date.
+            # ----------------------------------------------------
+            # SAME MAP RENDERER AS HISTORICAL DATES
+            # ----------------------------------------------------
+
             map_fig = history_map(
                 latest_compact
             )
 
             timeline_note = (
                 "Latest field uses the stored final screening "
-                "output. The map is displayed on the same "
-                "compact 1° spatial grid used across the "
-                "historical timeline."
+                "output and is displayed on the same compact "
+                "spatial grid used across the historical timeline."
+            )
+
+            # ----------------------------------------------------
+            # CURRENT RISK CELLS FOR SPATIAL ANALYSIS
+            # ----------------------------------------------------
+
+            current_risk_for_analysis = latest[
+                latest["risk_flag"].astype(bool)
+            ].copy()
+
+            current_risk_for_analysis["lat_bin"] = (
+                current_risk_for_analysis["latitude"].round()
+            )
+
+            current_risk_for_analysis["lon_bin"] = (
+                current_risk_for_analysis["longitude"].round()
             )
 
         else:
 
-            # Historical dates already use the compact 1° grid.
+            # ----------------------------------------------------
+            # HISTORICAL FIELD
+            # ----------------------------------------------------
+
             processed_count = len(selected)
 
             risk_count = int(
@@ -768,7 +784,7 @@ elif st.session_state.page == "map":
                 else 0
             )
 
-            # SAME renderer as the latest date.
+            # Same renderer as latest date.
             map_fig = history_map(
                 selected
             )
@@ -778,8 +794,13 @@ elif st.session_state.page == "map":
                 "screening, not another ML prediction."
             )
 
+            # Historical risk cells already use the compact grid.
+            current_risk_for_analysis = selected[
+                selected["risk"].astype(bool)
+            ].copy()
+
         # ========================================================
-        # EXISTING METRIC CARDS
+        # METRIC CARDS
         # ========================================================
 
         c1, c2, c3, c4 = st.columns(4)
@@ -813,7 +834,7 @@ elif st.session_state.page == "map":
             )
 
         # ========================================================
-        # MAP
+        # MAP CONTAINER
         # ========================================================
 
         st.markdown(
@@ -859,37 +880,16 @@ elif st.session_state.page == "map":
         )
 
         # ========================================================
-        # UNIQUE MAP INTERPRETATION
-        # ========================================================
-        # This is not another duplicate risk metric.
-        # It describes whether risk cells are spatially clustered.
+        # SPATIAL PATTERN
         # ========================================================
 
-        if is_latest:
-
-            pattern_source = latest[
-                latest["risk_flag"].astype(bool)
-            ].copy()
-
-            pattern_lat = "latitude"
-            pattern_lon = "longitude"
-
-        else:
-
-            pattern_source = selected[
-                selected["risk"].astype(bool)
-            ].copy()
-
-            pattern_lat = "lat_bin"
-            pattern_lon = "lon_bin"
-
-        if not pattern_source.empty:
+        if not current_risk_for_analysis.empty:
 
             cells = set()
 
             for lat, lon in zip(
-                pattern_source[pattern_lat],
-                pattern_source[pattern_lon],
+                current_risk_for_analysis["lat_bin"],
+                current_risk_for_analysis["lon_bin"],
             ):
 
                 if pd.notna(lat) and pd.notna(lon):
@@ -961,8 +961,7 @@ elif st.session_state.page == "map":
                 f"cluster"
                 f"{'s' if clusters != 1 else ''}. "
                 f"The largest cluster contains "
-                f"<b>{largest_cluster}</b> "
-                f"screening grid cell"
+                f"<b>{largest_cluster}</b> grid cell"
                 f"{'s' if largest_cluster != 1 else ''} "
                 f"({concentration:.1f}% of clustered "
                 f"risk cells). "
@@ -982,6 +981,108 @@ elif st.session_state.page == "map":
             f'<div class="callout">'
             f'<strong>Spatial pattern:</strong> '
             f'{pattern_text}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ========================================================
+        # RISK PERSISTENCE
+        # ========================================================
+
+        current_cells = set()
+
+        for lat, lon in zip(
+            current_risk_for_analysis["lat_bin"],
+            current_risk_for_analysis["lon_bin"],
+        ):
+
+            if pd.notna(lat) and pd.notna(lon):
+
+                current_cells.add(
+                    (
+                        int(round(float(lat))),
+                        int(round(float(lon))),
+                    )
+                )
+
+        # Find the previous observation date.
+        previous_dates = [
+            d
+            for d in date_values
+            if pd.Timestamp(d) < selected_ts
+        ]
+
+        if previous_dates and current_cells:
+
+            previous_date = pd.Timestamp(
+                previous_dates[-1]
+            )
+
+            previous = history[
+                history.date.dt.normalize()
+                == previous_date.normalize()
+            ].copy()
+
+            previous_risk = previous[
+                previous["risk"].astype(bool)
+            ].copy()
+
+            previous_cells = set()
+
+            for lat, lon in zip(
+                previous_risk["lat_bin"],
+                previous_risk["lon_bin"],
+            ):
+
+                if pd.notna(lat) and pd.notna(lon):
+
+                    previous_cells.add(
+                        (
+                            int(round(float(lat))),
+                            int(round(float(lon))),
+                        )
+                    )
+
+            persistent_cells = (
+                current_cells
+                & previous_cells
+            )
+
+            persistence_rate = (
+                len(persistent_cells)
+                / len(current_cells)
+                * 100
+                if current_cells
+                else 0
+            )
+
+            persistence_text = (
+                f"<b>{persistence_rate:.1f}%</b> of the "
+                f"current potential-risk grid cells were "
+                f"also screened in the previous observation "
+                f"({previous_date.strftime('%d %b %Y')}). "
+                f"This indicates spatial persistence in the "
+                f"screening signal, not confirmed bloom persistence."
+            )
+
+        elif not previous_dates:
+
+            persistence_text = (
+                "No previous observation is available for "
+                "this date, so persistence cannot be calculated."
+            )
+
+        else:
+
+            persistence_text = (
+                "No potential-risk cells are present in the "
+                "selected field, so persistence is not reported."
+            )
+
+        st.markdown(
+            f'<div class="callout">'
+            f'<strong>Risk persistence:</strong> '
+            f'{persistence_text}'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -1064,6 +1165,7 @@ elif st.session_state.page == "map":
             )
 
     footer()
+
 
 # ============================================================
 # LOCATION
