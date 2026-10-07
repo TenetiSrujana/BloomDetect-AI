@@ -20,6 +20,9 @@ st.set_page_config(
 
 BASE = Path(__file__).resolve().parent
 PREDICTION_FILE = BASE / "latest_bloom_risk_predictions.csv"
+# Environmental / SCAT-3 data
+ENVIRONMENT_FILE = BASE / "data" / "bloomdetect_environmental_signals.csv"
+OCEAN_ATMOSPHERE_FILE = BASE / "data" / "bloomdetect_ocean_atmosphere.csv"
 IMAGE_FILE = BASE / "bloomdetect_bloom_process.png"
 HISTORY_FILES = [
     BASE / "bloomdetect_history_web.csv.gz",
@@ -102,9 +105,217 @@ except Exception as exc:
 
 history, history_name = load_history()
 history_available = not history.empty
+
+
+@st.cache_data(show_spinner="Loading ocean-atmosphere observations…")
+def load_ocean_atmosphere():
+    """
+    Load the merged OCM-3 + SCAT-3 dataset.
+
+    The source contains the satellite chlorophyll-a field together
+    with analyzed wind and atmosphere-ocean forcing variables.
+    """
+
+    if not OCEAN_ATMOSPHERE_FILE.exists():
+        return pd.DataFrame()
+
+    required = [
+        "date",
+        "lat",
+        "lon",
+        "chla",
+        "risk",
+        "U",
+        "V",
+        "TAUX",
+        "TAUY",
+        "DIVG",
+        "CURL",
+        "QLH",
+        "QSH",
+        "NS",
+        "wind_speed",
+        "wind_direction",
+        "wind_stress",
+    ]
+
+    # Read only the required columns.
+    header = pd.read_csv(
+        OCEAN_ATMOSPHERE_FILE,
+        nrows=0
+    )
+
+    available = set(header.columns)
+
+    usecols = [
+        col
+        for col in required
+        if col in available
+    ]
+
+    if not {"date", "lat", "lon", "chla"}.issubset(usecols):
+        return pd.DataFrame()
+
+    env = pd.read_csv(
+        OCEAN_ATMOSPHERE_FILE,
+        usecols=usecols
+    )
+
+    env["date"] = pd.to_datetime(
+        env["date"],
+        errors="coerce"
+    )
+
+    numeric_cols = [
+        col
+        for col in usecols
+        if col not in {"date"}
+    ]
+
+    for col in numeric_cols:
+        env[col] = pd.to_numeric(
+            env[col],
+            errors="coerce"
+        )
+
+    env = env.replace(
+        [np.inf, -np.inf],
+        np.nan
+    )
+
+    env = env.dropna(
+        subset=[
+            "date",
+            "lat",
+            "lon",
+            "chla",
+        ]
+    ).copy()
+
+    env = env[
+        env["lat"].between(
+            LAT_MIN,
+            LAT_MAX
+        )
+        &
+        env["lon"].between(
+            LON_MIN,
+            LON_MAX
+        )
+    ].copy()
+
+    # Recalculate wind speed if the stored field is unavailable.
+    if "wind_speed" not in env.columns:
+        if {"U", "V"}.issubset(env.columns):
+            env["wind_speed"] = np.sqrt(
+                env["U"] ** 2 +
+                env["V"] ** 2
+            )
+
+    # Recalculate wind direction if unavailable.
+    if "wind_direction" not in env.columns:
+        if {"U", "V"}.issubset(env.columns):
+            env["wind_direction"] = (
+                np.degrees(
+                    np.arctan2(
+                        env["V"],
+                        env["U"]
+                    )
+                )
+                + 360
+            ) % 360
+
+    # Recalculate wind stress magnitude if unavailable.
+    if "wind_stress" not in env.columns:
+        if {"TAUX", "TAUY"}.issubset(env.columns):
+            env["wind_stress"] = np.sqrt(
+                env["TAUX"] ** 2 +
+                env["TAUY"] ** 2
+            )
+
+    return env
+
+
+ocean_atmosphere = load_ocean_atmosphere()
+
 latest_date = df["date"].max()
-latest = df[df["date"].dt.normalize() == latest_date.normalize()].copy()
-risk_latest = latest[latest["risk_flag"]].copy()
+
+latest = df[
+    df["date"].dt.normalize()
+    == latest_date.normalize()
+].copy()
+
+risk_latest = latest[
+    latest["risk_flag"]
+].copy()
+
+
+# Environmental dataset has a slightly different temporal endpoint.
+# Use the most recent environmental observation available at or before
+# the OCM-3 latest field.
+if not ocean_atmosphere.empty:
+
+    environmental_latest_date = ocean_atmosphere[
+        ocean_atmosphere["date"] <= latest_date
+    ]["date"].max()
+
+    if pd.notna(environmental_latest_date):
+
+        environmental_latest = ocean_atmosphere[
+            ocean_atmosphere["date"].dt.normalize()
+            == environmental_latest_date.normalize()
+        ].copy()
+
+    else:
+
+        environmental_latest_date = pd.NaT
+        environmental_latest = pd.DataFrame()
+
+else:
+
+    environmental_latest_date = pd.NaT
+    environmental_latest = pd.DataFrame()
+
+CHLA_ELEVATION_THRESHOLD = 0.10576990386471145
+WIND_FORCING_THRESHOLD = 8.7317875
+STRESS_FORCING_THRESHOLD = 0.11441081
+
+def environmental_state(row):
+    chla = pd.to_numeric(row.get("chla", np.nan), errors="coerce")
+    wind = pd.to_numeric(row.get("wind_speed", np.nan), errors="coerce")
+    stress = pd.to_numeric(row.get("wind_stress", np.nan), errors="coerce")
+    biological = pd.notna(chla) and chla >= CHLA_ELEVATION_THRESHOLD
+    forcing = ((pd.notna(wind) and wind >= WIND_FORCING_THRESHOLD) or (pd.notna(stress) and stress >= STRESS_FORCING_THRESHOLD))
+    if biological and forcing: return "Combined elevation + forcing"
+    if biological: return "Biological elevation"
+    if forcing: return "Environmental forcing"
+    return "Baseline"
+
+def environmental_features(frame):
+    if frame.empty: return frame.copy()
+    out = frame.copy()
+    for col in ["chla", "wind_speed", "wind_stress"]:
+        if col in out.columns: out[col] = pd.to_numeric(out[col], errors="coerce")
+        else: out[col] = np.nan
+    out["biological_elevation"] = out["chla"] >= CHLA_ELEVATION_THRESHOLD
+    out["environmental_forcing"] = (out["wind_speed"] >= WIND_FORCING_THRESHOLD) | (out["wind_stress"] >= STRESS_FORCING_THRESHOLD)
+    out["combined_signal"] = out["biological_elevation"] & out["environmental_forcing"]
+    out["signal_state"] = np.select([out["combined_signal"],out["biological_elevation"],out["environmental_forcing"]],["Combined elevation + forcing","Biological elevation","Environmental forcing"],default="Baseline")
+    return out
+
+@st.cache_data(show_spinner=False)
+def location_exposure_summary(frame):
+    """Summarize forcing exposure and screening rate by location."""
+    cols=[c for c in ["lat","lon","risk","wind_speed","wind_stress"] if c in frame.columns]
+    if len(cols)<5:
+        return pd.DataFrame()
+    z=frame[cols].dropna().copy()
+    if z.empty:
+        return pd.DataFrame()
+    z["forcing"]=(z["wind_speed"]>=WIND_FORCING_THRESHOLD)|(z["wind_stress"]>=STRESS_FORCING_THRESHOLD)
+    summary=z.groupby(["lat","lon"],as_index=False).agg(exposure=("forcing","mean"),screening_rate=("risk","mean"),observations=("risk","size"))
+    summary["exposure_band"]=pd.cut(summary["exposure"],[ -0.01,0.25,0.50,0.75,1.01],labels=["Low","Moderate","High","Very high"])
+    return summary
 
 # ============================================================
 # VISUAL SYSTEM
@@ -248,6 +459,12 @@ html,body,[data-testid="stAppViewContainer"]{
 
 .footer{margin-top:38px;padding-top:13px;border-top:1px solid #d6e9ea;color:#789197;font-size:.64rem}
 .small-muted{font-size:.69rem;color:var(--muted)}
+@keyframes floatSoft{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes pulseSoft{0%,100%{box-shadow:0 0 0 0 rgba(7,158,170,.12)}50%{box-shadow:0 0 0 12px rgba(7,158,170,0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.hero{animation:fadeUp .55s ease both}.hero:before{animation:pulseSoft 6s ease-in-out infinite}.metric,.card{animation:fadeUp .45s ease both}.brandmark{animation:floatSoft 4s ease-in-out infinite}
+.feature-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:#effafa;border:1px solid #cbe8e8;color:#0b5964;font-size:.69rem;font-weight:700;margin:3px 4px 3px 0}.feature-dot{width:7px;height:7px;border-radius:50%;background:#079eaa;display:inline-block}
+.home-feature{padding:20px;border:1px solid var(--line);border-radius:20px;background:white;box-shadow:0 9px 25px rgba(10,78,89,.055);margin-bottom:12px}.home-feature h3{font:800 1rem Manrope;color:var(--ink);margin:0 0 6px}.home-feature p{font-size:.76rem;line-height:1.55;color:#668188;margin:0}.home-mini{padding:14px;border-radius:16px;background:#f1fbfb;border:1px solid #d2ecec;margin-top:10px}.home-mini strong{color:var(--ink2);font-size:.78rem}.home-mini span{display:block;color:#6b858b;font-size:.7rem;line-height:1.45;margin-top:3px}
 
 @media(max-width:900px){.block-container{padding:15px 18px 40px!important}.hero{padding:36px 27px;min-height:400px}.hero h1{font-size:3.3rem}.topmeta{display:none}}
 @media(max-width:620px){.block-container{padding:10px 11px 32px!important}.hero{padding:31px 22px}.hero h1{font-size:2.8rem}.map-header{display:block}.map-header span{display:block;margin-top:5px}}
@@ -296,7 +513,7 @@ def card(title, copy, extra=""):
 
 def footer():
     st.markdown(
-        f'<div class="footer">BloomDetect AI · EOS-06 / Oceansat-3 OCM-3 · Potential bloom-risk screening · Latest processed field: {fmt_date(latest_date)}</div>',
+        f'<div class="footer">BloomDetect AI · EOS-06 OCM-3 + SCAT-3 · Ocean intelligence & screening · Latest processed field: {fmt_date(latest_date)}</div>',
         unsafe_allow_html=True,
     )
 
@@ -442,16 +659,73 @@ def nearest_ocean_cell(lat, lon):
         & latest.longitude.between(LON_MIN, LON_MAX)
         & (latest.chla > 0)
     ].copy()
+
     if valid.empty:
         return None, None
+
     lat_value = float(lat)
     lon_value = float(lon)
-    distance = ((valid.latitude - lat_value) / 70.0) ** 2 + ((valid.longitude - lon_value) / 100.0) ** 2
+
+    distance = (
+        ((valid.latitude - lat_value) / 70.0) ** 2
+        + ((valid.longitude - lon_value) / 100.0) ** 2
+    )
+
     idx = distance.idxmin()
     row = valid.loc[idx]
-    separation = float(np.hypot(float(row.latitude) - lat_value, float(row.longitude) - lon_value))
+
+    separation = float(
+        np.hypot(
+            float(row.latitude) - lat_value,
+            float(row.longitude) - lon_value
+        )
+    )
+
     return row, separation
 
+
+def nearest_environmental_cell(latitude, longitude, target_date=None):
+    """Find the nearest available SCAT-3 observation for a coordinate/date."""
+
+    if ocean_atmosphere.empty:
+        return None, None
+
+    env = ocean_atmosphere
+
+    if target_date is not None:
+        target = pd.Timestamp(target_date).normalize()
+
+        same_date = env[
+            env["date"].dt.normalize() == target
+        ]
+
+        if not same_date.empty:
+            env = same_date
+        else:
+            before = env[env["date"] <= target]
+            if not before.empty:
+                fallback_date = before["date"].max()
+                env = before[
+                    before["date"].dt.normalize()
+                    == fallback_date.normalize()
+                ]
+
+    if env.empty:
+        return None, None
+
+    lat_scale = max(LAT_MAX - LAT_MIN, 1)
+    lon_scale = max(LON_MAX - LON_MIN, 1)
+
+    distance = (
+        ((env["lat"] - float(latitude)) / lat_scale) ** 2
+        + ((env["lon"] - float(longitude)) / lon_scale) ** 2
+    )
+
+    idx = distance.idxmin()
+    result = env.loc[idx].copy()
+    separation = float(np.sqrt(distance.loc[idx]))
+
+    return result, separation
 
 def go_to(page):
     st.session_state.page = page
@@ -474,11 +748,11 @@ if st.session_state.get("page") not in {"home", "map", "location", "insights", "
 st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
 pages = [
-    ("home", "⌂ Home"),
-    ("map", "◉ Risk Map"),
-    ("location", "⌖ Location"),
-    ("insights", "▥ Insights"),
-    ("data", "↓ Data"),
+    ("home", "⌂ Overview"),
+    ("map", "◉ Ocean Map"),
+    ("location", "⌖ Location Check"),
+    ("insights", "▥ Ocean Insights"),
+    ("data", "↓ Research Data"),
 ]
 
 nav = st.columns(5)
@@ -499,70 +773,44 @@ for col, (key, label) in zip(nav, pages):
 
 if st.session_state.page == "home":
     st.markdown(
-        '''<section class="hero"><div class="hero-content"><div class="kicker">EOS-06 · OCM-3 · Satellite intelligence</div><h1>Read the ocean signal.</h1><p>BloomDetect AI screens satellite-derived chlorophyll-a and temporal behaviour to surface locations whose patterns may deserve closer investigation. It is an early-warning support system, not a claim of confirmed harmful algal bloom detection.</p><div class="chips"><span class="chip">🌊 Ocean colour</span><span class="chip">🛰 EOS-06 OCM-3</span><span class="chip">📍 Spatial screening</span><span class="chip">⚠ Potential bloom-risk signal</span></div></div></section>''',
+        '<section class="hero"><div class="hero-content"><div class="kicker">EOS-06 · OCM-3 + SCAT-3 · Multi-sensor ocean intelligence</div><h1>One ocean.<br>Many signals.</h1><p>BloomDetect AI brings together ocean colour, biological change and surface environmental conditions to help people understand where the ocean deserves a closer look. It is an investigation-support system, not a claim of confirmed harmful algal bloom detection.</p><div class="chips"><span class="chip">🌊 Chl-a & biology</span><span class="chip">💨 Wind & forcing</span><span class="chip">🗺 Spatial patterns</span><span class="chip">📍 Local conditions</span><span class="chip">🔬 Research support</span></div></div></section>',
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
+    c1,c2,c3,c4=st.columns(4)
+    with c1: metric("Ocean cells",f"{len(latest):,}","latest OCM-3 field")
+    with c2: metric("Potential-risk",f"{len(risk_latest):,}","screening signal")
+    with c3: metric("Wind context",(fmt_num(environmental_latest.wind_speed.mean(),1)+" m/s") if not environmental_latest.empty and "wind_speed" in environmental_latest.columns else "Unavailable","SCAT-3 field")
+    with c4: metric("Risk share",f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%","latest screening")
 
-    c1, c2, c3, c4 = st.columns(4)
+    st.markdown('<div class="section-label">What BloomDetect can understand</div>',unsafe_allow_html=True)
+    h1,h2=st.columns(2,gap="medium")
+    with h1:
+        st.markdown('<div class="home-feature"><h3>🌱 Biological activity</h3><p>Tracks chlorophyll-a, historical baseline, recent change and anomaly patterns to surface places whose biological signal deserves investigation.</p><div><span class="feature-pill"><i class="feature-dot"></i>Chl-a</span><span class="feature-pill"><i class="feature-dot"></i>Anomaly</span><span class="feature-pill"><i class="feature-dot"></i>Recent change</span></div><div class="home-mini"><strong>Human-readable answer</strong><span>“This location has an elevated or changing ocean-colour signal.”</span></div></div>',unsafe_allow_html=True)
+    with h2:
+        st.markdown('<div class="home-feature"><h3>💨 Environmental conditions</h3><p>Uses SCAT-3 analyzed wind and surface-flux observations to add environmental context around the biological signal.</p><div><span class="feature-pill"><i class="feature-dot"></i>Wind speed</span><span class="feature-pill"><i class="feature-dot"></i>Wind stress</span><span class="feature-pill"><i class="feature-dot"></i>Heat flux</span></div><div class="home-mini"><strong>Human-readable answer</strong><span>“This signal is occurring alongside stronger or weaker surface forcing.”</span></div></div>',unsafe_allow_html=True)
+    h3,h4=st.columns(2,gap="medium")
+    with h3:
+        st.markdown('<div class="home-feature"><h3>🧭 Real-world monitoring support</h3><p>Useful for researchers, coastal observers and marine-resource teams who need a fast way to inspect broad ocean conditions before deciding where closer investigation may be worthwhile.</p><div><span class="feature-pill"><i class="feature-dot"></i>Coastal watch</span><span class="feature-pill"><i class="feature-dot"></i>Marine research</span><span class="feature-pill"><i class="feature-dot"></i>Environmental screening</span></div></div>',unsafe_allow_html=True)
+    with h4:
+        st.markdown('<div class="home-feature"><h3>🔬 Beyond bloom screening</h3><p>The same observations support ocean-condition analysis, environmental forcing studies, spatial pattern analysis and ocean–atmosphere research. They do not directly predict fish catch, toxins or species identity.</p><div><span class="feature-pill"><i class="feature-dot"></i>Ocean conditions</span><span class="feature-pill"><i class="feature-dot"></i>Forcing patterns</span><span class="feature-pill"><i class="feature-dot"></i>Research evidence</span></div></div>',unsafe_allow_html=True)
 
-    with c1:
-        metric("Processed cells", f"{len(latest):,}", "latest processed field")
+    st.markdown('<div class="section-label">Choose what you want to understand</div>',unsafe_allow_html=True)
+    b1,b2,b3,b4,b5=st.columns(5)
+    nav_targets=[(b1,"🗺️","Ocean Map","See patterns across the study region.","map"),(b2,"📍","Location Check","Understand one coordinate.","location"),(b3,"📊","Ocean Insights","Compare biological and environmental signals.","insights"),(b4,"🧪","Research Data","Inspect sources and download evidence.","data"),(b5,"🌊","Overview","Return to the project overview.","home")]
+    for col,icon,title,desc,target in nav_targets:
+        with col:
+            st.markdown(f'<div class="home-mini"><strong>{icon} {title}</strong><span>{desc}</span></div>',unsafe_allow_html=True)
+            if st.button("Open",key="home_"+target,width="stretch",type="primary" if target!="home" else "secondary"):
+                go_to(target)
 
-    with c2:
-        metric("Potential-risk cells", f"{len(risk_latest):,}", "current screening")
+    if not environmental_latest.empty:
+        ef=environmental_features(environmental_latest)
+        combined_count=int(ef["combined_signal"].sum())
+        st.markdown(f'<div class="callout"><strong>Today’s research lens:</strong> the integrated dataset separates biological elevation, environmental forcing and their overlap. The latest matched field contains <b>{combined_count:,}</b> cells in the combined category. This is an observational screening signal, not proof that environmental forcing caused the biological change.</div>',unsafe_allow_html=True)
 
-    with c3:
-        metric(
-            "Risk share",
-            f"{(len(risk_latest)/len(latest)*100 if len(latest) else 0):.2f}%",
-            "of processed cells",
-        )
-
-    with c4:
-        metric("Maximum Chl-a", fmt_num(latest.chla.max()), "latest field")
-
-    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-
-    left, right = st.columns([1.05, .95], gap="large")
-
-    with left:
-        card(
-            "From satellite observation to investigation support",
-            "BloomDetect combines current chlorophyll-a with temporal context such as the previous observation, historical baseline and recent behaviour. The resulting flag is a potential bloom-risk screening signal.",
-            '<div class="callout"><strong>Scientific boundary:</strong> high chlorophyll-a alone does not prove a harmful algal bloom. Species, toxin presence and ecological impact require additional evidence and field validation.</div>',
-        )
-
-        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-
-        st.markdown(
-            '<div class="card"><div class="card-title">A focused workflow</div><div class="card-copy">Use <b>Risk Map</b> for the spatial field, <b>Location</b> for one coordinate, <b>Insights</b> for patterns, and <b>Data</b> for source files and project evidence. Each view has one job, so the same information does not keep haunting you across five pages.</div></div>',
-            unsafe_allow_html=True,
-        )
-
-    with right:
-        if IMAGE_FILE.exists():
-            st.image(
-                str(IMAGE_FILE),
-                width="stretch",
-                caption="Satellite ocean-colour observations supporting bloom-risk investigation",
-            )
-        else:
-            card(
-                "Project visual",
-                "The project illustration is not present beside app.py, so no substitute image is being invented.",
-            )
-
-    if history_available:
-        first_hist = history.date.min()
-        last_hist = history.date.max()
-
-        st.markdown(
-            f'<div class="callout"><strong>Timeline:</strong> the available compact historical screening layer covers {fmt_date(first_hist)} to {fmt_date(last_hist)}. Earlier dates are historical screening context, not additional ML model predictions.</div>',
-            unsafe_allow_html=True,
-        )
-
+    st.markdown('<div class="callout"><strong>What we do not claim:</strong> BloomDetect does not identify algal species, detect toxins, confirm a harmful algal bloom, predict fish catch or establish cause-and-effect from wind. Those questions need additional observations and field validation.</div>',unsafe_allow_html=True)
     footer()
 
 # ============================================================
@@ -880,6 +1128,27 @@ elif st.session_state.page == "map":
         )
 
         # ========================================================
+        # ENVIRONMENTAL LENS
+        # ========================================================
+
+        if is_latest and not environmental_latest.empty:
+            st.markdown('<div class="section-label">Environmental lens</div>',unsafe_allow_html=True)
+            st.markdown('<div class="callout"><strong>New:</strong> switch from the biological map to the surface environment. This helps answer not only “where is the signal?” but also “what conditions are present there?”</div>',unsafe_allow_html=True)
+            lens=st.selectbox("Map lens",["No environmental overlay","Wind speed","Wind stress","Combined elevation + forcing"],key="environmental_map_lens")
+            if lens != "No environmental overlay":
+                env_plot=environmental_latest.copy()
+                if lens=="Wind speed": field_col,label,scale="wind_speed","Wind speed (m/s)","Turbo"
+                elif lens=="Wind stress": field_col,label,scale="wind_stress","Wind stress (Pa)","Viridis"
+                else:
+                    env_plot=environmental_features(env_plot); env_plot["combined_value"]=env_plot["combined_signal"].astype(int); field_col,label,scale="combined_value","Combined signal","YlGnBu"
+                if field_col in env_plot.columns:
+                    env_plot=env_plot.dropna(subset=["lat","lon",field_col]).copy()
+                    if len(env_plot)>14000: env_plot=env_plot.sample(14000,random_state=42)
+                    fig_env=base_map(height=520)
+                    fig_env.add_trace(go.Scattergeo(lon=env_plot["lon"],lat=env_plot["lat"],mode="markers",name=label,marker=dict(size=4.2,color=env_plot[field_col],colorscale=scale,opacity=.72,colorbar=dict(title=label,thickness=13)),customdata=np.c_[env_plot["chla"],env_plot[field_col]],hovertemplate="Lat %{lat:.2f}°<br>Lon %{lon:.2f}°<br>Chl-a %{customdata[0]:.4f}<br>"+label+" %{customdata[1]:.3f}<extra></extra>"))
+                    st.plotly_chart(fig_env,width="stretch",config={"displaylogo":False,"scrollZoom":True,"responsive":True})
+
+        # ========================================================
         # SPATIAL PATTERN
         # ========================================================
 
@@ -1100,6 +1369,116 @@ elif st.session_state.page == "map":
             f'</div>',
             unsafe_allow_html=True,
         )
+
+
+        if not environmental_latest.empty:
+            st.markdown(
+                '<div class="section-label">Ocean–atmosphere context</div>',
+                unsafe_allow_html=True,
+            )
+
+            env_valid = environmental_latest.dropna(
+                subset=["wind_speed"]
+            ).copy() if "wind_speed" in environmental_latest.columns else pd.DataFrame()
+
+            if not env_valid.empty:
+                ec1, ec2, ec3, ec4 = st.columns(4)
+
+                with ec1:
+                    metric(
+                        "Environmental date",
+                        fmt_date(environmental_latest_date),
+                        "latest available SCAT-3"
+                    )
+
+                with ec2:
+                    metric(
+                        "Mean wind speed",
+                        f"{env_valid.wind_speed.mean():.2f} m/s",
+                        "study window"
+                    )
+
+                with ec3:
+                    stress_mean = (
+                        env_valid["wind_stress"].dropna().mean()
+                        if "wind_stress" in env_valid.columns
+                        else np.nan
+                    )
+                    metric(
+                        "Mean wind stress",
+                        f"{stress_mean:.3f} Pa" if pd.notna(stress_mean) else "Unavailable",
+                        "study window"
+                    )
+
+                with ec4:
+                    high_wind = env_valid["wind_speed"] >= 8.73
+                    metric(
+                        "Higher-wind cells",
+                        f"{int(high_wind.sum()):,}",
+                        "wind ≥ 75th percentile"
+                    )
+
+                env_map = env_valid[["lat", "lon", "wind_speed"]].copy()
+
+                if len(env_map) > 10000:
+                    env_map = env_map.sample(10000, random_state=42)
+
+                fig_env = px.scatter_geo(
+                    env_map,
+                    lat="lat",
+                    lon="lon",
+                    color="wind_speed",
+                    color_continuous_scale=[
+                        "#D8F3F0", "#58B4AE", "#0B7285", "#C0394B"
+                    ],
+                    hover_data={
+                        "lat": ":.2f",
+                        "lon": ":.2f",
+                        "wind_speed": ":.2f",
+                    },
+                    labels={"wind_speed": "Wind speed (m/s)"},
+                )
+
+                fig_env.update_geos(
+                    showcountries=True,
+                    countrycolor="#B8C9CC",
+                    showcoastlines=True,
+                    coastlinecolor="#6F858A",
+                    showland=True,
+                    landcolor="#F2F5F5",
+                    projection_type="equirectangular",
+                    lataxis_range=[LAT_MIN, LAT_MAX],
+                    lonaxis_range=[LON_MIN, LON_MAX],
+                )
+
+                fig_env.update_layout(
+                    height=500,
+                    margin=dict(l=10, r=10, t=20, b=20),
+                    paper_bgcolor="white",
+                    font=dict(family="DM Sans", color="#0b3e49"),
+                    coloraxis_colorbar=dict(title="Wind speed<br>(m/s)"),
+                )
+
+                st.plotly_chart(
+                    fig_env,
+                    width="stretch",
+                    config={"displaylogo": False, "scrollZoom": True, "responsive": True},
+                )
+
+                st.markdown(
+                    f"""
+                    <div class="callout">
+                        <strong>Environmental context:</strong>
+                        the map shows SCAT-3 analyzed wind speed for
+                        {fmt_date(environmental_latest_date)} alongside
+                        the selected OCM-3 screening field. Higher wind
+                        conditions may be associated with different
+                        ocean-surface and mixing conditions, but this
+                        relationship is not itself evidence of harmfulness.
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
     else:
 
@@ -1418,6 +1797,230 @@ elif st.session_state.page == "location":
                     "available signal"
                 )
 
+        # ====================================================
+        # OCEAN-ATMOSPHERE SUPPORT
+        # ====================================================
+
+        environmental_row, environmental_separation = (
+            nearest_environmental_cell(
+                float(row.latitude),
+                float(row.longitude),
+                row.date,
+            )
+        )
+
+        if environmental_row is not None:
+
+            st.markdown(
+                '<div class="section-label">'
+                'Ocean–atmosphere conditions'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+            st.markdown(
+                '<div class="callout">'
+                '<strong>SCAT-3 environmental support:</strong> '
+                'wind and surface-flux observations are shown '
+                'alongside the OCM-3 chlorophyll-a screening signal. '
+                'These variables describe environmental conditions '
+                'associated with the observation; they do not prove '
+                'that wind caused a bloom.'
+                '</div>',
+                unsafe_allow_html=True
+            )
+
+            e1, e2, e3, e4 = st.columns(4)
+
+            with e1:
+                metric(
+                    "Wind speed",
+                    (
+                        f"{environmental_row.wind_speed:.2f} m/s"
+                        if pd.notna(
+                            environmental_row.get(
+                                "wind_speed",
+                                np.nan
+                            )
+                        )
+                        else "Unavailable"
+                    ),
+                    "SCAT-3 analyzed wind"
+                )
+
+            with e2:
+                metric(
+                    "Wind stress",
+                    (
+                        f"{environmental_row.wind_stress:.3f} Pa"
+                        if pd.notna(
+                            environmental_row.get(
+                                "wind_stress",
+                                np.nan
+                            )
+                        )
+                        else "Unavailable"
+                    ),
+                    "surface forcing"
+                )
+
+            with e3:
+                metric(
+                    "Latent heat flux",
+                    (
+                        f"{environmental_row.QLH:.1f} W/m²"
+                        if pd.notna(
+                            environmental_row.get(
+                                "QLH",
+                                np.nan
+                            )
+                        )
+                        else "Unavailable"
+                    ),
+                    "air–sea heat exchange"
+                )
+
+            with e4:
+                metric(
+                    "Sensible heat flux",
+                    (
+                        f"{environmental_row.QSH:.1f} W/m²"
+                        if pd.notna(
+                            environmental_row.get(
+                                "QSH",
+                                np.nan
+                            )
+                        )
+                        else "Unavailable"
+                    ),
+                    "air–sea heat exchange"
+                )
+
+            # Environmental interpretation
+            wind_value = environmental_row.get(
+                "wind_speed",
+                np.nan
+            )
+
+            stress_value = environmental_row.get(
+                "wind_stress",
+                np.nan
+            )
+
+            chla_value = row.get(
+                "chla",
+                np.nan
+            )
+
+            anomaly_value = row.get(
+                "chla_anomaly",
+                np.nan
+            )
+
+            change_value = row.get(
+                "chla_change",
+                np.nan
+            )
+
+            environmental_notes = []
+
+            if pd.notna(wind_value):
+                if wind_value >= 8.73:
+                    environmental_notes.append(
+                        "elevated wind forcing"
+                    )
+                else:
+                    environmental_notes.append(
+                        "moderate wind forcing"
+                    )
+
+            if pd.notna(stress_value):
+                if stress_value >= 0.114:
+                    environmental_notes.append(
+                        "higher wind stress"
+                    )
+                else:
+                    environmental_notes.append(
+                        "lower wind stress"
+                    )
+
+            if (
+                pd.notna(anomaly_value)
+                and anomaly_value >= ANOMALY_THRESHOLD
+            ):
+                environmental_notes.append(
+                    "elevated Chl-a relative to the local baseline"
+                )
+
+            if (
+                pd.notna(change_value)
+                and change_value > CHANGE_THRESHOLD
+            ):
+                environmental_notes.append(
+                    "recently increasing Chl-a"
+                )
+
+            if environmental_notes:
+
+                interpretation = (
+                    ", ".join(
+                        environmental_notes
+                    )
+                    + "."
+                )
+
+            else:
+
+                interpretation = (
+                    "No strong environmental or temporal "
+                    "signal is identified from the available "
+                    "fields."
+                )
+
+            st.markdown(
+                f"""
+                <div class="callout">
+                    <strong>Environmental interpretation:</strong>
+                    {interpretation}
+                    This is contextual evidence for screening,
+                    not a causal diagnosis of harmful algal bloom
+                    formation.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            state = environmental_state({
+                "chla": chla_value,
+                "wind_speed": wind_value,
+                "wind_stress": stress_value,
+            })
+            direction_value = environmental_row.get("wind_direction", np.nan)
+            st.markdown('<div class="section-label">Plain-language reading</div>', unsafe_allow_html=True)
+            p1,p2,p3=st.columns(3)
+            with p1: metric("Environment state",state,"biological + forcing")
+            with p2: metric("Wind direction",f"{float(direction_value):.0f}°" if pd.notna(direction_value) else "Unavailable","analyzed direction")
+            with p3: metric("Chl-a signal", "Elevated" if pd.notna(chla_value) and chla_value >= CHLA_ELEVATION_THRESHOLD else "Lower","relative screening lens")
+
+            if (
+                pd.notna(environmental_row.date)
+                and environmental_row.date.normalize()
+                != pd.Timestamp(row.date).normalize()
+            ):
+
+                st.markdown(
+                    f"""
+                    <div class="small-muted">
+                        Environmental observation used:
+                        {fmt_date(environmental_row.date)}.
+                        The closest available SCAT-3 observation
+                        was used because an exact-date environmental
+                        record was not available for this cell.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )                
+
     # ========================================================
     # LOCATION HISTORY
     # Full-width so the graph is not squeezed into the
@@ -1612,649 +2215,145 @@ elif st.session_state.page == "location":
 elif st.session_state.page == "insights":
     page_head(
         "03 · OCEAN INTELLIGENCE",
-        "Find the patterns that matter.",
-        "The latest processed field is summarized through spatial concentration, Chl-a distribution, change and current screening priorities. Each view answers a different question and uses only stored project data.",
+        "See what the ocean is doing.",
+        "BloomDetect turns the same observations into simple views of biological activity, environmental forcing and the places where those signals overlap.",
     )
 
-    # --------------------------------------------------------
-    # CORE SIGNALS
-    # --------------------------------------------------------
-    change_series = pd.to_numeric(
-        latest.get(
-            "chla_change",
-            pd.Series(index=latest.index, dtype=float)
-        ),
-        errors="coerce",
-    )
+    change_series=pd.to_numeric(latest.get("chla_change",pd.Series(index=latest.index,dtype=float)),errors="coerce")
+    anomaly_series=pd.to_numeric(latest.get("chla_anomaly",pd.Series(index=latest.index,dtype=float)),errors="coerce")
+    chla_series=pd.to_numeric(latest.get("chla",pd.Series(index=latest.index,dtype=float)),errors="coerce")
+    positive_change=int((change_series>0).sum())
+    anomaly_count=int((anomaly_series>=ANOMALY_THRESHOLD).sum())
 
-    anomaly_series = pd.to_numeric(
-        latest.get(
-            "chla_anomaly",
-            pd.Series(index=latest.index, dtype=float)
-        ),
-        errors="coerce",
-    )
+    i1,i2,i3,i4=st.columns(4)
+    with i1: metric("Potential-risk",f"{len(risk_latest):,}","latest screening")
+    with i2: metric("Positive change",f"{positive_change:,}","Chl-a change > 0")
+    with i3: metric("Anomalous cells",f"{anomaly_count:,}",f"anomaly ≥ {ANOMALY_THRESHOLD:.3f}")
+    with i4: metric("Median Chl-a",fmt_num(chla_series.median()),"latest field")
 
-    chla_series = pd.to_numeric(
-        latest.get(
-            "chla",
-            pd.Series(index=latest.index, dtype=float)
-        ),
-        errors="coerce",
-    )
+    st.markdown('<div class="section-label">A simple way to read the ocean</div>',unsafe_allow_html=True)
+    state_counts=pd.Series(dtype=int)
+    if not environmental_latest.empty:
+        state_counts=environmental_features(environmental_latest)["signal_state"].value_counts()
+    q1,q2,q3,q4=st.columns(4,gap="medium")
+    cards=[(q1,"🌱 Biological elevation","Higher Chl-a relative to the project screening threshold.","Biological elevation"),(q2,"💨 Environmental forcing","Stronger surface wind or wind stress in the screening lens.","Environmental forcing"),(q3,"✨ Combined signal","Biological elevation alongside stronger environmental forcing.","Combined elevation + forcing"),(q4,"🌊 Baseline","Neither signal is elevated in the current lens.","Baseline")]
+    for col,title,copy,state in cards:
+        count=int(state_counts.get(state,0))
+        with col:
+            st.markdown(f'<div class="home-feature"><h3>{title}</h3><p>{copy}</p><div class="metric-value" style="margin-top:10px">{count:,}</div><div class="metric-note">matched environmental cells</div></div>',unsafe_allow_html=True)
 
-    positive_change = int((change_series > 0).sum())
-    anomaly_count = int(
-        (anomaly_series >= ANOMALY_THRESHOLD).sum()
-    )
+    st.markdown('<div class="section-label">Environment × biology</div>',unsafe_allow_html=True)
+    if not environmental_latest.empty:
+        ef=environmental_features(environmental_latest)
+        matrix=pd.crosstab(ef["biological_elevation"].map({True:"Elevated biology",False:"Lower biology"}),ef["environmental_forcing"].map({True:"Higher forcing",False:"Lower forcing"}))
+        matrix=matrix.reindex(index=["Lower biology","Elevated biology"],columns=["Lower forcing","Higher forcing"],fill_value=0)
+        st.dataframe(matrix,width="stretch")
+        st.markdown('<div class="callout"><strong>Research lens:</strong> the overlap category is useful for prioritising investigation. It is not a causal diagnosis.</div>',unsafe_allow_html=True)
+    else:
+        st.info("The SCAT-3 integrated layer is not available for this deployment.")
 
-    valid_chla = chla_series.dropna()
-    median_chla = (
-        float(valid_chla.median())
-        if not valid_chla.empty
-        else np.nan
-    )
+    st.markdown('<div class="section-label">Ocean–atmosphere relationships</div>',unsafe_allow_html=True)
+    if not ocean_atmosphere.empty and {"chla","wind_speed","wind_stress"}.issubset(ocean_atmosphere.columns):
+        env_sample=ocean_atmosphere[["chla","wind_speed","wind_stress"]].dropna().copy()
+        if len(env_sample)>6000: env_sample=env_sample.sample(6000,random_state=42)
+        r1,r2=st.columns(2,gap="large")
+        for col,xcol,title,xlabel in [(r1,"wind_speed","Chl-a and wind speed","Wind speed (m/s)"),(r2,"wind_stress","Chl-a and wind stress","Wind stress (Pa)")]:
+            with col:
+                fig=px.scatter(env_sample,x=xcol,y="chla",opacity=.30,labels={xcol:xlabel,"chla":"Chlorophyll-a"},title=title)
+                fig.update_traces(marker=dict(size=5,color="#0b8f9b"))
+                fig.update_layout(height=390,paper_bgcolor="white",plot_bgcolor="white",font=dict(family="DM Sans",color="#0b3e49"),margin=dict(l=65,r=20,t=55,b=65),xaxis=dict(tickfont=dict(color="#0b3e49",size=11),title_font=dict(color="#0b3e49",size=13)),yaxis=dict(tickfont=dict(color="#0b3e49",size=11),title_font=dict(color="#0b3e49",size=13)))
+                st.plotly_chart(fig,width="stretch",config={"displaylogo":False,"responsive":True})
+        wind_corr=env_sample[["chla","wind_speed"]].corr().iloc[0,1]
+        stress_corr=env_sample[["chla","wind_stress"]].corr().iloc[0,1]
+        st.markdown(f'<div class="callout"><strong>Observed association:</strong> Chl-a and wind speed correlation = <b>{wind_corr:.3f}</b>; Chl-a and wind stress correlation = <b>{stress_corr:.3f}</b>. These statistics describe association in the processed observations, not cause and effect.</div>',unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4)
+    st.markdown('<div class="section-label">Environmental exposure gradient</div>',unsafe_allow_html=True)
+    if not ocean_atmosphere.empty and {"lat","lon","risk","wind_speed","wind_stress"}.issubset(ocean_atmosphere.columns):
+        exposure=location_exposure_summary(ocean_atmosphere)
+        if not exposure.empty:
+            grad=(exposure.groupby("exposure_band",observed=False).agg(locations=("screening_rate","size"),mean_screening=("screening_rate","mean")).reset_index())
+            grad["mean_screening_pct"]=grad["mean_screening"]*100
+            fig=px.bar(grad,x="exposure_band",y="mean_screening_pct",text="mean_screening_pct",labels={"exposure_band":"Environmental exposure","mean_screening_pct":"Mean screening rate (%)"},title="Screening rate across environmental exposure")
+            fig.update_traces(marker_color="#0b8f9b",texttemplate="%{text:.2f}%",textposition="outside")
+            fig.update_layout(height=350,paper_bgcolor="white",plot_bgcolor="white",font=dict(family="DM Sans",color="#0b3e49"),margin=dict(l=55,r=25,t=55,b=55),xaxis=dict(tickfont=dict(color="#0b3e49",size=11),title_font=dict(color="#0b3e49",size=13)),yaxis=dict(tickfont=dict(color="#0b3e49",size=11),title_font=dict(color="#0b3e49",size=13)))
+            st.plotly_chart(fig,width="stretch",config={"displaylogo":False,"responsive":True})
+            st.markdown('<div class="callout"><strong>How to read it:</strong> locations are grouped by the share of their observations experiencing the project’s environmental-forcing screen. A higher screening rate is an association, not evidence that forcing caused the biological signal.</div>',unsafe_allow_html=True)
 
-    with c1:
-        metric(
-            "Potential-risk cells",
-            f"{len(risk_latest):,}",
-            "latest screening"
-        )
+    st.markdown('<div class="section-label">Where this can help</div>',unsafe_allow_html=True)
+    u1,u2,u3=st.columns(3,gap="medium")
+    for col,title,copy in [(u1,"🐟 Marine-resource support","Identify unusual ocean conditions that may deserve ecological or fisheries investigation. This is not a fish-catch predictor."),(u2,"🏖 Coastal environmental watch","Inspect biological and environmental signals together before prioritising a field visit or closer observation."),(u3,"🧪 Research & education","Explore how ocean-colour observations and atmospheric forcing behave together across space and time.")]:
+        with col: card(title,copy)
 
-    with c2:
-        metric(
-            "Positive Chl-a change",
-            f"{positive_change:,}",
-            "change > 0"
-        )
-
-    with c3:
-        metric(
-            "Anomalous cells",
-            f"{anomaly_count:,}",
-            f"anomaly ≥ {ANOMALY_THRESHOLD:.4f}"
-        )
-
-    with c4:
-        metric(
-            "Median Chl-a",
-            fmt_num(median_chla),
-            "latest field"
-        )
-
-    # --------------------------------------------------------
-    # SIGNAL INTERPRETATION
-    # --------------------------------------------------------
-    st.markdown(
-        '<div class="section-label">Signal interpretation</div>',
-        unsafe_allow_html=True
-    )
-
-    valid_signal = pd.DataFrame({
-        "change": change_series,
-        "anomaly": anomaly_series,
-    }).dropna()
-
+    st.markdown('<div class="section-label">Current biological signal</div>',unsafe_allow_html=True)
+    valid_signal=pd.DataFrame({"change":change_series,"anomaly":anomaly_series}).dropna()
     if not valid_signal.empty:
+        emerging=int(((valid_signal.anomaly>=ANOMALY_THRESHOLD)&(valid_signal.change>CHANGE_THRESHOLD)).sum())
+        persistent=int(((valid_signal.anomaly>=ANOMALY_THRESHOLD)&(valid_signal.change<=CHANGE_THRESHOLD)).sum())
+        rapid=int(((valid_signal.anomaly<ANOMALY_THRESHOLD)&(valid_signal.change>CHANGE_THRESHOLD)).sum())
+        baseline=int(((valid_signal.anomaly<ANOMALY_THRESHOLD)&(valid_signal.change<=CHANGE_THRESHOLD)).sum())
+        s1,s2,s3,s4=st.columns(4)
+        with s1: metric("Emerging",f"{emerging:,}","anomaly + rising")
+        with s2: metric("Persistent",f"{persistent:,}","elevated, not rising")
+        with s3: metric("Rapid change",f"{rapid:,}","rising without anomaly")
+        with s4: metric("Baseline",f"{baseline:,}","neither elevated")
 
-        high_anomaly = (
-            valid_signal["anomaly"] >= ANOMALY_THRESHOLD
-        )
-
-        rising = (
-            valid_signal["change"] > CHANGE_THRESHOLD
-        )
-
-        emerging = int((high_anomaly & rising).sum())
-        persistent = int((high_anomaly & ~rising).sum())
-        rapid_change = int((~high_anomaly & rising).sum())
-        baseline = int(
-            (~high_anomaly & ~rising).sum()
-        )
-
-        signal_total = len(valid_signal)
-
-        signal_df = pd.DataFrame({
-            "Signal state": [
-                "Emerging signal",
-                "Persistent elevated",
-                "Rapid change",
-                "Baseline"
-            ],
-            "Cells": [
-                emerging,
-                persistent,
-                rapid_change,
-                baseline
-            ],
-            "Meaning": [
-                "Elevated anomaly with recent increase",
-                "Elevated anomaly without strong recent increase",
-                "Recent increase without strong anomaly",
-                "Neither signal is elevated"
-            ]
-        })
-
-        s1, s2, s3, s4 = st.columns(4)
-
-        with s1:
-            metric(
-                "Emerging signal",
-                f"{emerging:,}",
-                "anomaly + rising Chl-a"
-            )
-
-        with s2:
-            metric(
-                "Persistent elevated",
-                f"{persistent:,}",
-                "anomaly without strong rise"
-            )
-
-        with s3:
-            metric(
-                "Rapid change",
-                f"{rapid_change:,}",
-                "rising Chl-a"
-            )
-
-        with s4:
-            metric(
-                "Baseline",
-                f"{baseline:,}",
-                "no elevated signal"
-            )
-
-        st.markdown(
-            '<div class="callout">'
-            '<strong>How to interpret this:</strong> '
-            'The matrix combines two existing signals, anomaly and recent Chl-a change, '
-            'to distinguish developing, persistent and rapidly changing conditions. '
-            'It is an analytical classification, not a separate ML prediction or a confirmed HAB diagnosis.'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-    else:
-        st.info(
-            "Anomaly and recent-change fields are not sufficiently available "
-            "to build the signal interpretation matrix."
-        )
-
-    # --------------------------------------------------------
-    # SPATIAL CONCENTRATION
-    # --------------------------------------------------------
-    st.markdown(
-        '<div class="section-label">Spatial concentration</div>',
-        unsafe_allow_html=True
-    )
-
-    if not risk_latest.empty:
-
-        zone = risk_latest.copy()
-
-        zone["lat_zone"] = np.floor(
-            zone.latitude / 5
-        ) * 5
-
-        zone["lon_zone"] = np.floor(
-            zone.longitude / 5
-        ) * 5
-
-        zone = (
-            zone
-            .groupby(
-                ["lat_zone", "lon_zone"],
-                as_index=False
-            )
-            .size()
-            .rename(columns={"size": "cells"})
-        )
-
-        zone["zone"] = zone.apply(
-            lambda r:
-            f"{r.lat_zone:.0f}°–{r.lat_zone+5:.0f}° · "
-            f"{r.lon_zone:.0f}°–{r.lon_zone+5:.0f}°",
-            axis=1
-        )
-
-        zone = (
-            zone
-            .nlargest(10, "cells")
-            .sort_values("cells")
-        )
-
-        fig = px.bar(
-            zone,
-            x="cells",
-            y="zone",
-            orientation="h",
-            text="cells"
-        )
-
-        fig.update_traces(
-            marker_color="#e84e5d",
-            textposition="outside"
-        )
-
-        fig.update_layout(
-            height=400,
-            margin=dict(
-                l=150,
-                r=45,
-                t=20,
-                b=55
-            ),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="white",
-            font=dict(
-                family="DM Sans",
-                color="#0b3e49"
-            ),
-            showlegend=False,
-            xaxis=dict(
-                title=dict(
-                    text="Potential-risk screening cells",
-                    font=dict(
-                        color="#0b3e49",
-                        size=13
-                    )
-                ),
-                tickfont=dict(
-                    color="#0b3e49",
-                    size=11
-                ),
-                gridcolor="#d7e9ea",
-                zerolinecolor="#9fcbd0",
-            ),
-            yaxis=dict(
-                title=dict(
-                    text="",
-                    font=dict(color="#0b3e49")
-                ),
-                tickfont=dict(
-                    color="#0b3e49",
-                    size=11
-                ),
-            ),
-        )
-
-        st.plotly_chart(
-            fig,
-            width="stretch",
-            config={"displaylogo": False}
-        )
-
-    else:
-        st.info(
-            "No potential-risk cells are present in the latest field, "
-            "so there is no concentration chart to fabricate."
-        )
-
-    # --------------------------------------------------------
-    # DISTRIBUTIONS
-    # --------------------------------------------------------
-    a, b = st.columns(2, gap="large")
-
-    with a:
-
-        card(
-            "Chl-a distribution",
-            "Distribution of valid positive chlorophyll-a observations in the latest field."
-        )
-
-        valid = latest.loc[
-            latest.chla > 0,
-            "chla"
-        ].dropna()
-
-        if not valid.empty:
-
-            fig = px.histogram(
-                valid,
-                nbins=45
-            )
-
-            fig.update_traces(
-                marker_color="#2387aa"
-            )
-
-            fig.update_layout(
-                height=350,
-                margin=dict(
-                    l=55,
-                    r=15,
-                    t=18,
-                    b=58
-                ),
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                font=dict(
-                    family="DM Sans",
-                    color="#0b3e49"
-                ),
-                showlegend=False,
-                xaxis=dict(
-                    title=dict(
-                        text="Chlorophyll-a",
-                        font=dict(
-                            color="#0b3e49",
-                            size=13
-                        )
-                    ),
-                    tickfont=dict(
-                        color="#0b3e49",
-                        size=11
-                    ),
-                    gridcolor="#d7e9ea",
-                    zerolinecolor="#9fcbd0",
-                ),
-                yaxis=dict(
-                    title=dict(
-                        text="Cells",
-                        font=dict(
-                            color="#0b3e49",
-                            size=13
-                        )
-                    ),
-                    tickfont=dict(
-                        color="#0b3e49",
-                        size=11
-                    ),
-                    gridcolor="#d7e9ea",
-                ),
-            )
-
-            st.plotly_chart(
-                fig,
-                width="stretch",
-                config={"displaylogo": False}
-            )
-
-    with b:
-
-        card(
-            "Recent Chl-a change",
-            "Distribution of change relative to the previous observation, where that field exists."
-        )
-
-        change = change_series.dropna()
-
-        if not change.empty:
-
-            fig = px.histogram(
-                change,
-                nbins=45
-            )
-
-            fig.update_traces(
-                marker_color="#22a878"
-            )
-
-            fig.add_vline(
-                x=CHANGE_THRESHOLD,
-                line_dash="dash",
-                line_color="#d8952e"
-            )
-
-            fig.update_layout(
-                height=350,
-                margin=dict(
-                    l=55,
-                    r=15,
-                    t=18,
-                    b=58
-                ),
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                font=dict(
-                    family="DM Sans",
-                    color="#0b3e49"
-                ),
-                showlegend=False,
-                xaxis=dict(
-                    title=dict(
-                        text="Chl-a change",
-                        font=dict(
-                            color="#0b3e49",
-                            size=13
-                        )
-                    ),
-                    tickfont=dict(
-                        color="#0b3e49",
-                        size=11
-                    ),
-                    gridcolor="#d7e9ea",
-                    zerolinecolor="#9fcbd0",
-                ),
-                yaxis=dict(
-                    title=dict(
-                        text="Cells",
-                        font=dict(
-                            color="#0b3e49",
-                            size=13
-                        )
-                    ),
-                    tickfont=dict(
-                        color="#0b3e49",
-                        size=11
-                    ),
-                    gridcolor="#d7e9ea",
-                ),
-            )
-
-            st.plotly_chart(
-                fig,
-                width="stretch",
-                config={"displaylogo": False}
-            )
-
-        else:
-            st.info(
-                "Recent-change values are not present in the latest field."
-            )
-
-    # --------------------------------------------------------
-    # SCREENING PRIORITIES
-    # --------------------------------------------------------
-    st.markdown(
-        '<div class="section-label">Current screening priorities</div>',
-        unsafe_allow_html=True
-    )
-
-    if not risk_latest.empty:
-
-        sort_col = (
-            "risk_probability"
-            if "risk_probability" in risk_latest.columns
-            else "chla"
-        )
-
-        priority = (
-            risk_latest
-            .sort_values(
-                sort_col,
-                ascending=False
-            )
-            .head(12)
-            .copy()
-        )
-
-        priority["Location"] = priority.apply(
-            lambda r:
-            f"{r.latitude:.3f}°, {r.longitude:.3f}°",
-            axis=1
-        )
-
-        table = pd.DataFrame({
-            "Location": priority.Location,
-            "Chl-a": priority.chla.round(4),
-            "Risk probability":
-                priority["risk_probability"].map(
-                    lambda x:
-                    f"{x:.1%}"
-                    if pd.notna(x)
-                    else "Unavailable"
-                )
-                if "risk_probability" in priority
-                else "Unavailable",
-            "Anomaly":
-                priority["chla_anomaly"].round(4)
-                if "chla_anomaly" in priority
-                else np.nan,
-            "Recent change":
-                priority["chla_change"].round(4)
-                if "chla_change" in priority
-                else np.nan,
-        })
-
-        st.dataframe(
-            table,
-            width="stretch",
-            hide_index=True
-        )
-
-    else:
-        st.info(
-            "No current screening priorities are available in the latest field."
-        )
-
-    # --------------------------------------------------------
-    # REGIONAL VIEW
-    # --------------------------------------------------------
-    st.markdown(
-        '<div class="section-label">Regional view</div>',
-        unsafe_allow_html=True
-    )
-
-    regional = latest.copy()
-
-    def region(lat, lon):
-        if lon >= 75 and lat >= 0:
-            return "Bay of Bengal"
-        if lon < 75 and lat >= -5:
-            return "Arabian Sea"
-        if lon >= 55 and lat < 0:
-            return "Southern Indian Ocean"
-        return "Northern Indian Ocean"
-
-    regional["Region"] = [
-        region(a, b)
-        for a, b in zip(
-            regional.latitude,
-            regional.longitude
-        )
-    ]
-
-    summary = (
-        regional
-        .groupby("Region")
-        .agg(
-            Processed_cells=("Region", "size"),
-            Potential_risk=("risk_flag", "sum"),
-            Mean_Chl_a=("chla", "mean"),
-            Maximum_Chl_a=("chla", "max"),
-        )
-        .reset_index()
-    )
-
-    summary["Risk_share"] = (
-        summary.Potential_risk
-        / summary.Processed_cells
-        * 100
-    )
-
-    summary = summary.sort_values(
-        "Potential_risk",
-        ascending=False
-    )
-
-    st.dataframe(
-        summary.rename(
-            columns={
-                "Processed_cells": "Processed cells",
-                "Potential_risk": "Potential-risk cells",
-                "Mean_Chl_a": "Mean Chl-a",
-                "Maximum_Chl_a": "Maximum Chl-a",
-                "Risk_share": "Risk share (%)",
-            }
-        ).round(4),
-        width="stretch",
-        hide_index=True
-    )
-
-    # --------------------------------------------------------
-    # SCIENTIFIC BOUNDARY
-    # --------------------------------------------------------
-    st.markdown(
-        '<div class="callout">'
-        '<strong>Scientific caution:</strong> '
-        'these are descriptive satellite-derived signals and proxy screening results. '
-        'They do not identify algal species or toxins and do not confirm a harmful algal bloom.'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
+    st.markdown('<div class="callout"><strong>Scientific boundary:</strong> Chl-a is a biological proxy. The combined environmental categories are screening aids and observational associations. They do not confirm HAB species, toxins, ecological impact or causation.</div>',unsafe_allow_html=True)
     footer()
-    
+
 # ============================================================
 # DATA
 # ============================================================
 
 elif st.session_state.page == "data":
     page_head(
-        "04 · DATA & RESEARCH",
-        "The evidence behind the dashboard.",
-        "Source, coverage, processing scope and downloadable outputs live here. The other pages stay focused on analysis rather than repeating dataset documentation.",
+        "04 · RESEARCH DATA",
+        "Know what is behind every signal.",
+        "Two EOS-06 observation streams are brought together here: OCM-3 for ocean-colour biology and SCAT-3 for surface environmental conditions. Download the evidence, not a mystery box.",
     )
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: metric("Product", "E06OCM_L4_AC", "EOS-06 / OCM-3")
-    with c2: metric("Grid", "0.25°", "latest processed field")
-    with c3: metric("Coverage", f"{fmt_date(df.date.min())} → {fmt_date(latest_date)}", "available prediction records")
-    with c4: metric("Latest field", f"{len(latest):,}", fmt_date(latest_date))
+    c1,c2,c3,c4=st.columns(4)
+    with c1: metric("OCM-3","Chl-a","biological signal")
+    with c2: metric("SCAT-3","Wind","environmental context")
+    with c3: metric("Integrated rows",f"{len(ocean_atmosphere):,}" if not ocean_atmosphere.empty else "Unavailable","matched observations")
+    with c4: metric("Latest field",fmt_date(latest_date),"OCM-3")
 
-    st.markdown('<div class="section-label">Source product</div>', unsafe_allow_html=True)
-    card(
-        "EOS-06 / Oceansat-3 OCM-3 Level-4 analysed chlorophyll-a",
-        "The dashboard uses the E06OCM_L4_AC satellite-derived ocean-colour product. The current application layer combines chlorophyll-a with temporal signals already stored in the processed project data.",
-        '<div class="callout"><strong>Study window:</strong> approximately 20°E–120°E longitude and 40°S–30°N latitude for the dashboard spatial view.</div>',
-    )
+    st.markdown('<div class="section-label">What each dataset contributes</div>',unsafe_allow_html=True)
+    d1,d2=st.columns(2,gap="medium")
+    with d1: card("🛰 OCM-3 · Biological view","Satellite-derived chlorophyll-a plus temporal behaviour: previous observation, baseline, anomaly and recent change. This powers the existing potential-risk screening layer.",'<div class="callout"><strong>Use it for:</strong> spatial screening, biological-pattern analysis and locating unusual ocean-colour signals.</div>')
+    with d2: card("💨 SCAT-3 · Environmental view","Analyzed zonal/meridional wind, wind speed, direction, wind stress, fluxes, divergence, curl and sample-count information where available.",'<div class="callout"><strong>Use it for:</strong> environmental context, forcing analysis and ocean–atmosphere relationship studies.</div>')
 
-    st.markdown('<div class="section-label">Project outputs</div>', unsafe_allow_html=True)
-    d1, d2 = st.columns(2, gap="large")
-    with d1:
-        card("Latest observations", "All valid observations from the latest processed field.")
-        st.download_button(
-            "Download latest observations",
-            data=latest.to_csv(index=False).encode("utf-8"),
-            file_name="bloomdetect_latest_observations.csv",
-            mime="text/csv",
-            width="stretch",
-        )
-    with d2:
-        card("Potential-risk shortlist", "Only cells currently included in the latest potential-risk screening output.")
-        st.download_button(
-            "Download potential-risk locations",
-            data=risk_latest.to_csv(index=False).encode("utf-8"),
-            file_name="bloomdetect_potential_risk_locations.csv",
-            mime="text/csv",
-            width="stretch",
-        )
+    if not ocean_atmosphere.empty:
+        env_cells=len(ocean_atmosphere); env_dates=ocean_atmosphere.date.nunique(); env_first=ocean_atmosphere.date.min(); env_last=ocean_atmosphere.date.max()
+        st.markdown('<div class="section-label">Integrated project layer</div>',unsafe_allow_html=True)
+        e1,e2,e3,e4=st.columns(4)
+        with e1: metric("Matched observations",f"{env_cells:,}","OCM-3 + SCAT-3")
+        with e2: metric("Observation dates",f"{env_dates:,}","integrated layer")
+        with e3: metric("Coverage start",fmt_date(env_first),"integrated")
+        with e4: metric("Coverage end",fmt_date(env_last),"integrated")
+        ef=environmental_features(environmental_latest) if not environmental_latest.empty else pd.DataFrame()
+        if not ef.empty:
+            st.markdown('<div class="section-label">New derived research features</div>',unsafe_allow_html=True)
+            f1,f2,f3=st.columns(3,gap="medium")
+            biological=int(ef.biological_elevation.sum()); forcing=int(ef.environmental_forcing.sum()); combined=int(ef.combined_signal.sum())
+            with f1: metric("Biological elevation",f"{biological:,}",f"Chl-a ≥ {CHLA_ELEVATION_THRESHOLD:.3f}")
+            with f2: metric("Environmental forcing",f"{forcing:,}","wind / stress threshold")
+            with f3: metric("Combined signal",f"{combined:,}","elevation + forcing")
+            st.markdown('<div class="callout"><strong>Feature meaning:</strong> these are transparent screening categories derived from the integrated observations. They are deliberately interpretable so a non-technical user can understand why a location was placed in a category.</div>',unsafe_allow_html=True)
+        if not environmental_latest.empty:
+            st.download_button("Download latest integrated field",data=environmental_latest.to_csv(index=False).encode("utf-8"),file_name="bloomdetect_latest_ocean_atmosphere.csv",mime="text/csv",width="stretch")
+        with st.expander("Variables in the integrated dataset"):
+            st.write(", ".join([c for c in ["date","lat","lon","chla","U","V","wind_speed","wind_direction","TAUX","TAUY","wind_stress","DIVG","CURL","QLH","QSH","NS"] if c in ocean_atmosphere.columns]))
+    else:
+        st.warning("The integrated OCM-3 + SCAT-3 dataset could not be loaded.")
 
-    st.markdown('<div class="section-label">Model evidence</div>', unsafe_allow_html=True)
-    model = pd.DataFrame({
-        "Metric": ["Accuracy", "Precision", "Recall", "F1", "ROC-AUC"],
-        "Final Decision Tree": [0.9993, 0.8331, 0.9988, 0.9085, 0.9997],
-    })
-    st.dataframe(model, width="stretch", hide_index=True)
-    st.markdown('<div class="callout"><strong>Interpretation:</strong> these metrics evaluate the project’s proxy screening target derived from chlorophyll-a temporal behaviour. They are not field-validated HAB detection accuracy. Satellite observations cannot independently establish species identity or toxin presence.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Existing project evidence</div>',unsafe_allow_html=True)
+    d1,d2=st.columns(2,gap="medium")
+    with d1: st.download_button("Download latest OCM-3 observations",data=latest.to_csv(index=False).encode("utf-8"),file_name="bloomdetect_latest_observations.csv",mime="text/csv",width="stretch")
+    with d2: st.download_button("Download potential-risk shortlist",data=risk_latest.to_csv(index=False).encode("utf-8"),file_name="bloomdetect_potential_risk_locations.csv",mime="text/csv",width="stretch")
 
-    if history_available:
-        st.markdown('<div class="section-label">Historical support layer</div>', unsafe_allow_html=True)
-        card("Compact observation history", f"The Risk Map timeline is backed by <b>{history_name}</b>. It is an aggregated historical screening layer, not a second ML model. Available dates: {fmt_date(history.date.min())} to {fmt_date(history.date.max())}.")
-
+    st.markdown('<div class="section-label">Model evidence</div>',unsafe_allow_html=True)
+    model=pd.DataFrame({"Metric":["Accuracy","Precision","Recall","F1","ROC-AUC"],"Final Decision Tree":[0.9993,0.8331,0.9988,0.9085,0.9997]})
+    st.dataframe(model,width="stretch",hide_index=True)
+    st.markdown('<div class="callout"><strong>Important:</strong> these metrics evaluate the project proxy screening target derived from chlorophyll-a temporal behaviour. They are not field-validated HAB detection accuracy.</div>',unsafe_allow_html=True)
+    st.markdown('<div class="callout"><strong>What is not included:</strong> species identification, toxin detection, fish-catch prediction, confirmed bloom diagnosis or causal claims about wind and biology. Those require additional evidence and validation.</div>',unsafe_allow_html=True)
     footer()
