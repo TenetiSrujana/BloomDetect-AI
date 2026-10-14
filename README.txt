@@ -19,3 +19,6 @@ Main file: app.py
 IMPORTANT:
 The app intentionally describes results as POTENTIAL BLOOM RISK. Chlorophyll-a alone does not confirm a harmful algal bloom, species, or toxin.
 Downloads appear only on the Data page.
+
+
+https://bloomdetect-ai-majorproject.streamlit.app/
