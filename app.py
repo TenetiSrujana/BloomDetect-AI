@@ -465,6 +465,21 @@ html,body,[data-testid="stAppViewContainer"]{
 .hero{animation:fadeUp .55s ease both}.hero:before{animation:pulseSoft 6s ease-in-out infinite}.metric,.card{animation:fadeUp .45s ease both}.brandmark{animation:floatSoft 4s ease-in-out infinite}
 .feature-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:#effafa;border:1px solid #cbe8e8;color:#0b5964;font-size:.69rem;font-weight:700;margin:3px 4px 3px 0}.feature-dot{width:7px;height:7px;border-radius:50%;background:#079eaa;display:inline-block}
 .home-feature{padding:20px;border:1px solid var(--line);border-radius:20px;background:white;box-shadow:0 9px 25px rgba(10,78,89,.055);margin-bottom:12px}.home-feature h3{font:800 1rem Manrope;color:var(--ink);margin:0 0 6px}.home-feature p{font-size:.76rem;line-height:1.55;color:#668188;margin:0}.home-mini{padding:14px;border-radius:16px;background:#f1fbfb;border:1px solid #d2ecec;margin-top:10px}.home-mini strong{color:var(--ink2);font-size:.78rem}.home-mini span{display:block;color:#6b858b;font-size:.7rem;line-height:1.45;margin-top:3px}
+.home-nav-card{
+  box-sizing:border-box;min-height:105px;padding:15px 14px;border-radius:16px;
+  background:linear-gradient(180deg,#ffffff 0%,#f3fbfb 100%);
+  border:1px solid #d0e9ea;box-shadow:0 5px 16px rgba(10,76,87,.045);
+  margin-top:0;display:flex;flex-direction:column;justify-content:flex-start;
+}
+.home-nav-card strong{display:block;color:var(--ink);font:800 .78rem Manrope;line-height:1.35;min-height:21px}
+.home-nav-card span{display:block;color:#668188;font-size:.69rem;line-height:1.45;margin-top:7px}
+.home-nav-card .nav-icon{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;
+  border-radius:9px;background:#e0f6f5;color:var(--teal2);margin-right:6px;font-size:.85rem}
+.stButton>button{
+  font-family:'DM Sans',sans-serif!important;letter-spacing:.01em!important;
+  font-size:.78rem!important;min-height:42px!important;border-radius:12px!important;
+}
+
 
 @media(max-width:900px){.block-container{padding:15px 18px 40px!important}.hero{padding:36px 27px;min-height:400px}.hero h1{font-size:3.3rem}.topmeta{display:none}}
 @media(max-width:620px){.block-container{padding:10px 11px 32px!important}.hero{padding:31px 22px}.hero h1{font-size:2.8rem}.map-header{display:block}.map-header span{display:block;margin-top:5px}}
@@ -797,12 +812,21 @@ if st.session_state.page == "home":
         st.markdown('<div class="home-feature"><h3>🔬 Beyond bloom screening</h3><p>The same observations support ocean-condition analysis, environmental forcing studies, spatial pattern analysis and ocean–atmosphere research. They do not directly predict fish catch, toxins or species identity.</p><div><span class="feature-pill"><i class="feature-dot"></i>Ocean conditions</span><span class="feature-pill"><i class="feature-dot"></i>Forcing patterns</span><span class="feature-pill"><i class="feature-dot"></i>Research evidence</span></div></div>',unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">Choose what you want to understand</div>',unsafe_allow_html=True)
-    b1,b2,b3,b4,b5=st.columns(5)
-    nav_targets=[(b1,"🗺️","Ocean Map","See patterns across the study region.","map"),(b2,"📍","Location Check","Understand one coordinate.","location"),(b3,"📊","Ocean Insights","Compare biological and environmental signals.","insights"),(b4,"🧪","Research Data","Inspect sources and download evidence.","data"),(b5,"🌊","Overview","Return to the project overview.","home")]
-    for col,icon,title,desc,target in nav_targets:
+    b1,b2,b3,b4,b5=st.columns(5,gap="small")
+    nav_targets=[
+        (b1,"🗺️","Ocean Map","Explore spatial patterns across the study region.","map","View map"),
+        (b2,"📍","Location Check","Inspect biological and environmental signals at one coordinate.","location","Check location"),
+        (b3,"📊","Ocean Insights","Compare biological and environmental observations.","insights","View insights"),
+        (b4,"🧪","Research Data","Review data sources and download supporting evidence.","data","Explore data"),
+        (b5,"🌊","Overview","Return to the project overview.","home","Overview"),
+    ]
+    for col,icon,title,desc,target,action in nav_targets:
         with col:
-            st.markdown(f'<div class="home-mini"><strong>{icon} {title}</strong><span>{desc}</span></div>',unsafe_allow_html=True)
-            if st.button("Open",key="home_"+target,width="stretch",type="primary" if target!="home" else "secondary"):
+            st.markdown(
+                f'<div class="home-nav-card"><strong><span class="nav-icon">{icon}</span>{title}</strong><span>{desc}</span></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(action,key="home_"+target,width="stretch",type="primary"):
                 go_to(target)
 
     if not environmental_latest.empty:
