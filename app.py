@@ -808,7 +808,7 @@ if st.session_state.page == "home":
     if not environmental_latest.empty:
         ef=environmental_features(environmental_latest)
         combined_count=int(ef["combined_signal"].sum())
-        st.markdown(f'<div class="callout"><strong>Today’s research lens:</strong> the integrated dataset separates biological elevation, environmental forcing and their overlap. The latest matched field contains <b>{combined_count:,}</b> cells in the combined category. This is an observational screening signal, not proof that environmental forcing caused the biological change.</div>',unsafe_allow_html=True)
+        st.markdown(f'<div class="callout"><strong>Latest research lens:</strong> the integrated dataset separates biological elevation, environmental forcing and their overlap. The latest matched field contains <b>{combined_count:,}</b> cells in the combined category. This is an observational screening signal, not proof that environmental forcing caused the biological change.</div>',unsafe_allow_html=True)
 
     st.markdown('<div class="callout"><strong>What we do not claim:</strong> BloomDetect does not identify algal species, detect toxins, confirm a harmful algal bloom, predict fish catch or establish cause-and-effect from wind. Those questions need additional observations and field validation.</div>',unsafe_allow_html=True)
     footer()
@@ -2352,7 +2352,7 @@ elif st.session_state.page == "data":
     with d2: st.download_button("Download potential-risk shortlist",data=risk_latest.to_csv(index=False).encode("utf-8"),file_name="bloomdetect_potential_risk_locations.csv",mime="text/csv",width="stretch")
 
     st.markdown('<div class="section-label">Model evidence</div>',unsafe_allow_html=True)
-    model=pd.DataFrame({"Metric":["Accuracy","Precision","Recall","F1","ROC-AUC"],"Final Decision Tree":[0.9993,0.8331,0.9988,0.9085,0.9997]})
+    model=pd.DataFrame({"Metric":["Accuracy","Precision","Recall","F1-score","ROC-AUC"],"Final Decision Tree":["95.99%","77.33%","94.82%","85.19%","0.9915"]})
     st.dataframe(model,width="stretch",hide_index=True)
     st.markdown('<div class="callout"><strong>Important:</strong> these metrics evaluate the project proxy screening target derived from chlorophyll-a temporal behaviour. They are not field-validated HAB detection accuracy.</div>',unsafe_allow_html=True)
     st.markdown('<div class="callout"><strong>What is not included:</strong> species identification, toxin detection, fish-catch prediction, confirmed bloom diagnosis or causal claims about wind and biology. Those require additional evidence and validation.</div>',unsafe_allow_html=True)
